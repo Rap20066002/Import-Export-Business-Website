@@ -1,0 +1,221 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  company   String?
+  role      UserRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rfqs    RFQ[]     @relation("BuyerRFQs")
+  orders  Order[]   @relation("BuyerOrders")
+  quotationsCreated Quotation[]
+  statusChanges     OrderStatusHistory[]
+  uploadedDocuments Document[]
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  SALES_MANAGER
+  LOGISTICS_MANAGER
+  BUYER
+}
+
+model Country {
+  id        Int       @id @default(autoincrement())
+  name      String
+  code      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  ports    Port[]
+  products Product[]  @relation("OriginCountryProducts")
+}
+
+model Port {
+  id         Int       @id @default(autoincrement())
+  name       String
+  code       String?
+  countryId  Int
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  country    Country   @relation(fields: [countryId], references: [id])
+  products   Product[] @relation("LoadingPortProducts")
+  rfqs       RFQ[]     @relation("DestinationPortRFQs")
+  orders     Order[]   @relation("DestinationPortOrders")
+}
+
+model Product {
+  id              Int        @id @default(autoincrement())
+  slug            String     @unique
+  nameEn          String
+  nameFa          String?
+  descriptionEn   String?
+  descriptionFa   String?
+  originCountryId Int
+  moq             Int        // minimum order quantity in containers
+  containerCapacityTons Float
+  packagingOptions String
+  incoterms       String
+  isActive        Boolean    @default(true)
+  metaTitle       String?
+  metaDescription String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  originCountry   Country    @relation("OriginCountryProducts", fields: [originCountryId], references: [id])
+  loadingPorts    Port[]     @relation("LoadingPortProducts")
+  rfqItems        RFQItem[]
+  orderItems      OrderItem[]
+}
+
+model RFQ {
+  id               Int             @id @default(autoincrement())
+  buyerId          String
+  status           RFQStatus       @default(SUBMITTED)
+  destinationPortId Int
+  incoterm         Incoterm
+  quantityContainers Int
+  targetPricePerTon Float?
+  grade            String?
+  notes            String?
+  companyDocumentKey String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  buyer            User            @relation("BuyerRFQs", fields: [buyerId], references: [id])
+  destinationPort  Port            @relation("DestinationPortRFQs", fields: [destinationPortId], references: [id])
+  items            RFQItem[]
+  quotations       Quotation[]
+  order            Order[]
+}
+
+model RFQItem {
+  id        Int     @id @default(autoincrement())
+  rfqId     Int
+  productId Int
+
+  rfq       RFQ     @relation(fields: [rfqId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+enum RFQStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  QUOTED
+  NEGOTIATION
+  CONVERTED_TO_ORDER
+  REJECTED
+}
+
+enum Incoterm {
+  FOB
+  CIF
+  CFR
+}
+
+model Quotation {
+  id              Int       @id @default(autoincrement())
+  rfqId           Int
+  quotedById      String
+  pricePerTon     Float
+  currency        String
+  validityDate    DateTime
+  notes           String?
+  createdAt       DateTime  @default(now())
+
+  rfq             RFQ       @relation(fields: [rfqId], references: [id])
+  quotedBy        User      @relation(fields: [quotedById], references: [id])
+}
+
+model Order {
+  id               Int                @id @default(autoincrement())
+  orderNumber      String             @unique
+  buyerId          String
+  rfqId            Int?
+  destinationPortId Int
+  status           OrderStatus        @default(AWAITING_CONFIRMATION)
+  totalAmount      Float?
+  currency         String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  buyer            User               @relation("BuyerOrders", fields: [buyerId], references: [id])
+  rfq              RFQ?               @relation(fields: [rfqId], references: [id])
+  destinationPort  Port               @relation("DestinationPortOrders", fields: [destinationPortId], references: [id])
+  items            OrderItem[]
+  statusHistory    OrderStatusHistory[]
+  documents        Document[]
+}
+
+model OrderItem {
+  id          Int     @id @default(autoincrement())
+  orderId     Int
+  productId   Int
+  quantityTons Float
+  unitPrice   Float
+
+  order       Order   @relation(fields: [orderId], references: [id])
+  product     Product @relation(fields: [productId], references: [id])
+}
+
+enum OrderStatus {
+  AWAITING_CONFIRMATION
+  CONTAINER_BOOKING
+  LOADED
+  SHIPPED
+  DOCUMENTS_UPLOADED
+  COMPLETED
+}
+
+model OrderStatusHistory {
+  id        Int         @id @default(autoincrement())
+  orderId   Int
+  status    OrderStatus
+  changedById String
+  note      String?
+  createdAt DateTime    @default(now())
+
+  order     Order       @relation(fields: [orderId], references: [id])
+  changedBy User        @relation(fields: [changedById], references: [id])
+}
+
+model Document {
+  id          Int        @id @default(autoincrement())
+  orderId     Int
+  type        DocumentType
+  fileKey     String
+  fileName    String
+  uploadedById String
+  uploadedAt  DateTime   @default(now())
+
+  order       Order      @relation(fields: [orderId], references: [id])
+  uploadedBy  User       @relation(fields: [uploadedById], references: [id])
+}
+
+enum DocumentType {
+  PROFORMA_INVOICE
+  COMMERCIAL_INVOICE
+  PACKING_LIST
+  BILL_OF_LADING
+  PHYTOSANITARY_CERTIFICATE
+  OTHER
+}
+
