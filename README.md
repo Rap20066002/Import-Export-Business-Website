@@ -60,14 +60,14 @@ Required for local:
 
 ## Local Development
 
-### 1) Install
+### 1 Install
 
 ```bash
 cd backend && npm install
 cd ../frontend && npm install
 ```
 
-### 2) Database migration + seed
+### 2 Database migration + seed
 
 ```bash
 cd backend
@@ -75,7 +75,7 @@ npx prisma migrate dev --name init_schema
 npx prisma db seed
 ```
 
-### 3) Start backend
+### 3 Start backend
 
 ```bash
 cd backend
@@ -84,7 +84,7 @@ npm run dev
 
 Backend runs on `http://localhost:4000`.
 
-### 4) Start frontend
+### 4 Start frontend
 
 ```bash
 cd frontend
