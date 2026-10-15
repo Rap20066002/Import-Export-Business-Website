@@ -8,6 +8,17 @@ async function main() {
     { name: "Iran", code: "IR" },
     { name: "UAE", code: "AE" },
     { name: "Iraq", code: "IQ" },
+    { name: "Saudi Arabia", code: "SA" },
+    { name: "Netherlands", code: "NL" },
+    { name: "Germany", code: "DE" },
+    { name: "Belgium", code: "BE" },
+    { name: "United Kingdom", code: "GB" },
+    { name: "Singapore", code: "SG" },
+    { name: "China", code: "CN" },
+    { name: "United States", code: "US" },
+    { name: "Pakistan", code: "PK" },
+    { name: "Bangladesh", code: "BD" },
+    { name: "Kenya", code: "KE" },
   ];
 
   for (const c of countries) {
@@ -32,6 +43,19 @@ async function main() {
     { name: "Umm Qasr Port", code: "IQUMM", countryCode: "IQ" },
     { name: "Shahid Rajaee Port", code: "IRRAJ", countryCode: "IR" },
     { name: "Bushehr Port", code: "IRBUS", countryCode: "IR" },
+    { name: "Mundra Port", code: "INMUN", countryCode: "IN" },
+    { name: "Jeddah Islamic Port", code: "SAJED", countryCode: "SA" },
+    { name: "King Abdulaziz Port (Dammam)", code: "SADMN", countryCode: "SA" },
+    { name: "Port of Rotterdam", code: "NLRTM", countryCode: "NL" },
+    { name: "Port of Hamburg", code: "DEHAM", countryCode: "DE" },
+    { name: "Port of Antwerp", code: "BEANR", countryCode: "BE" },
+    { name: "Felixstowe", code: "GBFXT", countryCode: "GB" },
+    { name: "Port of Singapore", code: "SGSIN", countryCode: "SG" },
+    { name: "Shanghai", code: "CNSHA", countryCode: "CN" },
+    { name: "Los Angeles", code: "USLAX", countryCode: "US" },
+    { name: "Karachi", code: "PKKHI", countryCode: "PK" },
+    { name: "Chittagong", code: "BDCGP", countryCode: "BD" },
+    { name: "Mombasa", code: "KEMBA", countryCode: "KE" },
   ];
 
   for (const p of ports) {

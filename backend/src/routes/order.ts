@@ -1,14 +1,14 @@
 import { Router } from "express";
 import { z } from "zod";
-import multer from "multer";
 
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/auth";
 import { deleteFileByKey, getFileForDownload, uploadBufferToS3 } from "../lib/s3";
-import { sendEventEmail } from "../lib/email";
+import { notifyBuyerAndAdmin } from "../lib/email";
+import { publicUserSelect } from "../lib/public-user";
+import { handleUpload, safeFileName } from "../lib/uploads";
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
 
 const convertSchema = z.object({
   rfqId: z.number().int().positive(),
@@ -29,9 +29,12 @@ router.post("/convert-from-rfq", requireAuth(["SUPER_ADMIN", "SALES_MANAGER"]), 
 
   const rfq = await prisma.rFQ.findUnique({
     where: { id: parsed.data.rfqId },
-    include: { items: true },
+    include: { items: { include: { product: true } }, order: true },
   });
   if (!rfq) return res.status(404).json({ error: "RFQ not found" });
+  if (rfq.order.length) {
+    return res.status(400).json({ error: "This RFQ already has an order" });
+  }
 
   const order = await prisma.order.create({
     data: {
@@ -45,8 +48,8 @@ router.post("/convert-from-rfq", requireAuth(["SUPER_ADMIN", "SALES_MANAGER"]), 
       items: {
         create: rfq.items.map((item) => ({
           productId: item.productId,
-          quantityTons: rfq.quantityContainers,
-          unitPrice: parsed.data.totalAmount / rfq.quantityContainers,
+          quantityTons: rfq.quantityContainers * item.product.containerCapacityTons,
+          unitPrice: parsed.data.totalAmount / Math.max(rfq.quantityContainers, 1),
         })),
       },
       statusHistory: {
@@ -74,16 +77,19 @@ router.get("/", requireAuth(), async (req, res) => {
     where,
     include: {
       items: { include: { product: true } },
-      buyer: true,
+      buyer: { select: publicUserSelect },
       destinationPort: { include: { country: true } },
       statusHistory: true,
+      documents: {
+        select: { id: true, type: true, fileName: true, uploadedAt: true },
+        orderBy: { uploadedAt: "desc" },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
   return res.json(orders);
 });
 
-// Update order stage (logistics/admin)
 router.post(
   "/:orderId/status",
   requireAuth(["SUPER_ADMIN", "LOGISTICS_MANAGER"]),
@@ -110,7 +116,7 @@ router.post(
 
     const order = await prisma.order.findUnique({
       where: { id: Number(req.params.orderId) },
-      include: { buyer: true },
+      include: { buyer: { select: publicUserSelect } },
     });
     if (!order) return res.status(404).json({ error: "Order not found" });
 
@@ -128,15 +134,11 @@ router.post(
       },
     });
 
-    // Email to buyer + admin (best-effort)
-    try {
-      await sendEventEmail("ORDER_STATUS_UPDATED", order.buyer.email);
-      if (process.env.ADMIN_NOTIFICATION_EMAIL) {
-        await sendEventEmail("ORDER_STATUS_UPDATED", process.env.ADMIN_NOTIFICATION_EMAIL);
-      }
-    } catch {
-      // ignore
-    }
+    await notifyBuyerAndAdmin("ORDER_STATUS_UPDATED", order.buyer.email, {
+      "Order number": order.orderNumber,
+      Status: parsed.data.status.replace(/_/g, " "),
+      Note: parsed.data.note,
+    });
 
     return res.json({ ok: true });
   }
@@ -161,11 +163,10 @@ router.get("/:orderId/documents", requireAuth(), async (req, res) => {
   return res.json(documents);
 });
 
-// Upload a document to an order (S3-backed)
 router.post(
   "/:orderId/documents",
   requireAuth(["SUPER_ADMIN", "SALES_MANAGER", "LOGISTICS_MANAGER", "BUYER"]),
-  upload.single("file"),
+  handleUpload("file"),
   async (req, res) => {
     const schema = z.object({
       type: z.enum([
@@ -181,22 +182,29 @@ router.post(
     const parsed = schema.safeParse(req.body);
     if (!parsed.success || !req.user || !req.file) {
       return res.status(400).json({
-        error: "Invalid input",
-        details: parsed.success ? null : parsed.error.flatten(),
+        error: "Invalid input. A file and document type are required.",
       });
     }
 
     const order = await prisma.order.findUnique({
       where: { id: Number(req.params.orderId) },
-      include: { buyer: true },
+      include: { buyer: { select: publicUserSelect } },
     });
     if (!order) return res.status(404).json({ error: "Order not found" });
 
-    if (req.user.role === "BUYER" && order.buyerId !== req.user.id) {
-      return res.status(403).json({ error: "Forbidden" });
+    if (req.user.role === "BUYER") {
+      if (order.buyerId !== req.user.id) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      if (parsed.data.type !== "OTHER") {
+        return res.status(403).json({
+          error: "Buyers can upload supporting files (payment proof, LC copy) as Other. Official shipping documents are uploaded by our team.",
+        });
+      }
     }
 
-    const documentKey = `orders/${order.id}/documents/${Date.now()}-${req.file.originalname}`;
+    const fileName = safeFileName(req.file.originalname);
+    const documentKey = `orders/${order.id}/documents/${Date.now()}-${fileName}`;
     await uploadBufferToS3(documentKey, req.file.buffer, req.file.mimetype);
 
     const doc = await prisma.document.create({
@@ -204,19 +212,16 @@ router.post(
         orderId: order.id,
         type: parsed.data.type,
         fileKey: documentKey,
-        fileName: req.file.originalname,
+        fileName,
         uploadedById: req.user.id,
       },
     });
 
-    try {
-      await sendEventEmail("DOCUMENT_UPLOADED", order.buyer.email);
-      if (process.env.ADMIN_NOTIFICATION_EMAIL) {
-        await sendEventEmail("DOCUMENT_UPLOADED", process.env.ADMIN_NOTIFICATION_EMAIL);
-      }
-    } catch {
-      // ignore
-    }
+    await notifyBuyerAndAdmin("DOCUMENT_UPLOADED", order.buyer.email, {
+      "Order number": order.orderNumber,
+      Type: parsed.data.type.replace(/_/g, " "),
+      File: fileName,
+    });
 
     return res.status(201).json(doc);
   }
@@ -240,10 +245,14 @@ router.get(
       return res.status(403).json({ error: "Forbidden" });
     }
 
-    const { buffer, contentType } = await getFileForDownload(document.fileKey);
-    res.setHeader("Content-Type", contentType);
-    res.setHeader("Content-Disposition", `attachment; filename="${document.fileName}"`);
-    return res.send(buffer);
+    try {
+      const { buffer, contentType } = await getFileForDownload(document.fileKey);
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Content-Disposition", `attachment; filename="${document.fileName}"`);
+      return res.send(buffer);
+    } catch {
+      return res.status(404).json({ error: "Document file is missing from storage" });
+    }
   }
 );
 
@@ -266,4 +275,3 @@ router.delete(
 );
 
 export const orderRouter = router;
-

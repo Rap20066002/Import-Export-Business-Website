@@ -18,6 +18,7 @@ model User {
   password  String
   name      String
   company   String?
+  phone     String?
   role      UserRole
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -27,6 +28,7 @@ model User {
   quotationsCreated Quotation[]
   statusChanges     OrderStatusHistory[]
   uploadedDocuments Document[]
+  rfqMessages       RfqMessage[]
 }
 
 enum UserRole {
@@ -104,6 +106,18 @@ model RFQ {
   items            RFQItem[]
   quotations       Quotation[]
   order            Order[]
+  messages         RfqMessage[]
+}
+
+model RfqMessage {
+  id        Int      @id @default(autoincrement())
+  rfqId     Int
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  rfq    RFQ  @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id])
 }
 
 model RFQItem {

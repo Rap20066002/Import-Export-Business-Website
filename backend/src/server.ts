@@ -9,6 +9,9 @@ import { rfqRouter } from "./routes/rfq";
 import { orderRouter } from "./routes/order";
 import { productRouter } from "./routes/product";
 import { lookupRouter } from "./routes/lookup";
+import { inquiryRouter } from "./routes/inquiry";
+import { isEmailConfigured } from "./lib/email";
+import { storageMode } from "./lib/s3";
 
 dotenv.config();
 
@@ -45,7 +48,11 @@ const limiter = rateLimit({
 app.use(limiter);
 
 app.get("/health", (_req, res) => {
-  res.json({ status: "ok" });
+  res.json({
+    status: "ok",
+    emailConfigured: isEmailConfigured(),
+    storage: storageMode(),
+  });
 });
 
 app.use("/api/auth", authRouter);
@@ -53,11 +60,20 @@ app.use("/api/lookups", lookupRouter);
 app.use("/api/rfqs", rfqRouter);
 app.use("/api/orders", orderRouter);
 app.use("/api/products", productRouter);
+app.use("/api/inquiries", inquiryRouter);
 
 const port = process.env.PORT || 4000;
 
 app.listen(port, () => {
   // eslint-disable-next-line no-console
   console.log(`Backend API running on port ${port}`);
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET === "replace-with-a-strong-secret") {
+    console.warn("Set a strong JWT_SECRET in backend/.env before going live.");
+  }
+  if (!isEmailConfigured()) {
+    console.warn(
+      "Email is not configured. RFQ/order emails will not send until you set SENDGRID_API_KEY or SMTP_HOST/SMTP_USER/SMTP_PASS."
+    );
+  }
 });
 

@@ -1,14 +1,39 @@
 import { Router } from "express";
-import multer from "multer";
 import { z } from "zod";
 
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/auth";
-import { getLocalFileDataUrlForKey, getSignedUrlForKey, uploadBufferToS3 } from "../lib/s3";
-import { sendEventEmail } from "../lib/email";
+import { getFileForDownload, uploadBufferToS3 } from "../lib/s3";
+import { notifyBuyerAndAdmin, sendEventEmail } from "../lib/email";
+import { publicUserSelect } from "../lib/public-user";
+import { handleUpload, safeFileName } from "../lib/uploads";
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+
+const rfqInclude = {
+  items: { include: { product: true } },
+  buyer: { select: publicUserSelect },
+  destinationPort: { include: { country: true } },
+  quotations: {
+    orderBy: { createdAt: "desc" as const },
+    take: 10,
+    include: { quotedBy: { select: { name: true, role: true } } },
+  },
+  order: true,
+  messages: {
+    orderBy: { createdAt: "asc" as const },
+    include: { author: { select: publicUserSelect } },
+  },
+};
+
+async function addRfqMessage(rfqId: number, authorId: string, body: string) {
+  const trimmed = body.trim();
+  if (!trimmed) return null;
+  return prisma.rfqMessage.create({
+    data: { rfqId, authorId, body: trimmed },
+    include: { author: { select: publicUserSelect } },
+  });
+}
 
 const rfqSchema = z.object({
   productIds: z.array(z.number()).min(1),
@@ -20,25 +45,38 @@ const rfqSchema = z.object({
   notes: z.string().optional(),
 });
 
+function parseProductIds(raw: unknown): number[] {
+  if (Array.isArray(raw)) return raw.map(Number).filter((n) => Number.isFinite(n));
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map(Number).filter((n) => Number.isFinite(n));
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 router.post(
   "/",
   requireAuth(["BUYER"]),
-  upload.single("companyDocument"),
+  handleUpload("companyDocument"),
   async (req, res) => {
     const parsed = rfqSchema.safeParse({
       ...req.body,
-      productIds: req.body.productIds ? JSON.parse(req.body.productIds) : [],
+      productIds: parseProductIds(req.body.productIds),
       quantityContainers: Number(req.body.quantityContainers),
       destinationPortId: Number(req.body.destinationPortId),
       targetPricePerTon: req.body.targetPricePerTon ? Number(req.body.targetPricePerTon) : undefined,
     });
     if (!parsed.success || !req.user) {
-      return res.status(400).json({ error: "Invalid input" });
+      return res.status(400).json({ error: "Invalid input. Check product, quantity, port, and incoterm." });
     }
 
     let documentKey: string | undefined;
     if (req.file) {
-      const key = `company-docs/${Date.now()}-${req.file.originalname}`;
+      const key = `company-docs/${Date.now()}-${safeFileName(req.file.originalname)}`;
       await uploadBufferToS3(key, req.file.buffer, req.file.mimetype);
       documentKey = key;
     }
@@ -57,18 +95,36 @@ router.post(
         items: {
           create: parsed.data.productIds.map((productId) => ({ productId })),
         },
+        ...(parsed.data.notes?.trim()
+          ? {
+              messages: {
+                create: { authorId: req.user.id, body: parsed.data.notes.trim() },
+              },
+            }
+          : {}),
       },
-      include: { items: true, buyer: true },
+      include: rfqInclude,
     });
 
-    // Email notifications (buyer + internal admin)
-    try {
-      await sendEventEmail("RFQ_SUBMITTED", rfq.buyer.email);
-      if (process.env.ADMIN_NOTIFICATION_EMAIL) {
-        await sendEventEmail("RFQ_SUBMITTED", process.env.ADMIN_NOTIFICATION_EMAIL);
-      }
-    } catch {
-      // non-blocking
+    const productNames = rfq.items.map((item) => item.product.nameEn).join(", ");
+    const details = {
+      "RFQ ID": `#${rfq.id}`,
+      Buyer: rfq.buyer.name,
+      Company: rfq.buyer.company,
+      Email: rfq.buyer.email,
+      Phone: rfq.buyer.phone,
+      Products: productNames,
+      Quantity: `${rfq.quantityContainers} container(s)`,
+      Incoterm: rfq.incoterm,
+      Destination: `${rfq.destinationPort.name}, ${rfq.destinationPort.country.name}`,
+      Grade: rfq.grade,
+      "Target price": rfq.targetPricePerTon,
+      Notes: rfq.notes,
+    };
+
+    await sendEventEmail("RFQ_SUBMITTED", rfq.buyer.email, details);
+    if (process.env.ADMIN_NOTIFICATION_EMAIL) {
+      await sendEventEmail("RFQ_SUBMITTED", process.env.ADMIN_NOTIFICATION_EMAIL, details);
     }
 
     return res.status(201).json(rfq);
@@ -80,23 +136,56 @@ router.get("/", requireAuth(), async (req, res) => {
   const where = isBuyer ? { buyerId: req.user?.id } : {};
   const rfqs = await prisma.rFQ.findMany({
     where,
-    include: {
-      items: { include: { product: true } },
-      buyer: true,
-      destinationPort: { include: { country: true } },
-      quotations: {
-        orderBy: { createdAt: "desc" },
-        take: 1,
-      },
-      order: true,
-    },
+    include: rfqInclude,
     orderBy: { createdAt: "desc" },
   });
   return res.json(rfqs);
 });
 
+router.post(
+  "/:rfqId/review",
+  requireAuth(["SUPER_ADMIN", "SALES_MANAGER"]),
+  async (req, res) => {
+    const body = z.object({
+      status: z.enum(["UNDER_REVIEW", "REJECTED"]),
+      notes: z.string().optional(),
+    });
+    const parsed = body.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid input" });
+    }
+
+    const rfq = await prisma.rFQ.findUnique({
+      where: { id: Number(req.params.rfqId) },
+      include: { buyer: { select: publicUserSelect } },
+    });
+    if (!rfq) return res.status(404).json({ error: "RFQ not found" });
+    if (rfq.status === "CONVERTED_TO_ORDER") {
+      return res.status(400).json({ error: "This RFQ is already converted to an order" });
+    }
+
+    const updated = await prisma.rFQ.update({
+      where: { id: rfq.id },
+      data: { status: parsed.data.status },
+      include: rfqInclude,
+    });
+    if (parsed.data.notes?.trim() && req.user) {
+      await addRfqMessage(rfq.id, req.user.id, parsed.data.notes);
+    }
+
+    if (parsed.data.status === "REJECTED") {
+      await notifyBuyerAndAdmin("RFQ_REJECTED", rfq.buyer.email, {
+        "RFQ ID": `#${rfq.id}`,
+        Note: parsed.data.notes,
+      });
+    }
+
+    return res.json(updated);
+  }
+);
+
 router.get(
-  "/:rfqId/company-document",
+  "/:rfqId/company-document/download",
   requireAuth(["SUPER_ADMIN", "SALES_MANAGER", "LOGISTICS_MANAGER"]),
   async (req, res) => {
     const rfqId = Number(req.params.rfqId);
@@ -108,11 +197,15 @@ router.get(
     if (!rfq) return res.status(404).json({ error: "RFQ not found" });
     if (!rfq.companyDocumentKey) return res.status(404).json({ error: "No company document uploaded" });
 
-    const url = process.env.AWS_S3_BUCKET
-      ? await getSignedUrlForKey(rfq.companyDocumentKey)
-      : await getLocalFileDataUrlForKey(rfq.companyDocumentKey);
-
-    return res.json({ url });
+    try {
+      const { buffer, contentType } = await getFileForDownload(rfq.companyDocumentKey);
+      const fileName = rfq.companyDocumentKey.split("/").pop() || "company-document";
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+      return res.send(buffer);
+    } catch {
+      return res.status(404).json({ error: "Document file is missing from storage" });
+    }
   }
 );
 
@@ -123,7 +216,7 @@ router.post(
     const body = z.object({
       pricePerTon: z.number().positive(),
       currency: z.string().min(1).optional().default("USD"),
-      validityDate: z.string().datetime().optional(),
+      validityDate: z.string().optional(),
       notes: z.string().optional(),
     });
 
@@ -137,9 +230,22 @@ router.post(
 
     const rfq = await prisma.rFQ.findUnique({
       where: { id: Number(req.params.rfqId) },
-      include: { buyer: true },
+      include: rfqInclude,
     });
     if (!rfq) return res.status(404).json({ error: "RFQ not found" });
+    if (rfq.status === "CONVERTED_TO_ORDER") {
+      return res.status(400).json({ error: "This RFQ is already converted to an order" });
+    }
+    if (rfq.status === "REJECTED") {
+      return res.status(400).json({ error: "Rejected RFQs cannot be quoted" });
+    }
+
+    const validityDate = parsed.data.validityDate
+      ? new Date(parsed.data.validityDate)
+      : new Date(Date.now() + 14 * 86400000);
+    if (Number.isNaN(validityDate.getTime())) {
+      return res.status(400).json({ error: "Invalid validity date" });
+    }
 
     const quotation = await prisma.quotation.create({
       data: {
@@ -147,7 +253,7 @@ router.post(
         quotedById: req.user.id,
         pricePerTon: parsed.data.pricePerTon,
         currency: parsed.data.currency,
-        validityDate: parsed.data.validityDate ? new Date(parsed.data.validityDate) : new Date(Date.now() + 14 * 86400000),
+        validityDate,
         notes: parsed.data.notes,
       },
     });
@@ -156,16 +262,28 @@ router.post(
       where: { id: rfq.id },
       data: { status: "QUOTED" },
     });
-
-    // Email to buyer and admin (non-blocking)
-    try {
-      await sendEventEmail("RFQ_QUOTED", rfq.buyer.email);
-      if (process.env.ADMIN_NOTIFICATION_EMAIL) {
-        await sendEventEmail("RFQ_QUOTED", process.env.ADMIN_NOTIFICATION_EMAIL);
-      }
-    } catch {
-      // ignore
+    if (parsed.data.notes?.trim()) {
+      await addRfqMessage(
+        rfq.id,
+        req.user.id,
+        `Quotation: ${quotation.pricePerTon} ${quotation.currency} per ton. Valid until ${validityDate.toISOString().slice(0, 10)}.\n${parsed.data.notes.trim()}`
+      );
+    } else {
+      await addRfqMessage(
+        rfq.id,
+        req.user.id,
+        `Quotation sent: ${quotation.pricePerTon} ${quotation.currency} per ton, valid until ${validityDate.toISOString().slice(0, 10)}.`
+      );
     }
+
+    const productNames = rfq.items.map((item) => item.product.nameEn).join(", ");
+    await notifyBuyerAndAdmin("RFQ_QUOTED", rfq.buyer.email, {
+      "RFQ ID": `#${rfq.id}`,
+      Products: productNames,
+      "Price per ton": `${quotation.pricePerTon} ${quotation.currency}`,
+      "Valid until": validityDate.toISOString().slice(0, 10),
+      Notes: quotation.notes,
+    });
 
     return res.status(201).json({ rfq: { id: rfq.id, status: "QUOTED" }, quotation });
   }
@@ -174,10 +292,9 @@ router.post(
 router.post("/:rfqId/confirm", requireAuth(["BUYER"]), async (req, res) => {
   const parsedBody = z
     .object({
-      // optional: allow buyer to send a note that will appear in proforma/email
       notes: z.string().optional(),
     })
-    .safeParse(req.body);
+    .safeParse(req.body ?? {});
 
   if (!parsedBody.success || !req.user) {
     return res.status(400).json({ error: "Invalid input" });
@@ -185,27 +302,28 @@ router.post("/:rfqId/confirm", requireAuth(["BUYER"]), async (req, res) => {
 
   const rfq = await prisma.rFQ.findUnique({
     where: { id: Number(req.params.rfqId) },
-    include: {
-      items: { include: { product: true } },
-      buyer: true,
-      destinationPort: true,
-      quotations: {
-        orderBy: { createdAt: "desc" },
-        take: 1,
-      },
-    },
+    include: rfqInclude,
   });
 
   if (!rfq) return res.status(404).json({ error: "RFQ not found" });
-  if (!rfq.buyer || rfq.buyer.id !== req.user.id) {
+  if (rfq.buyer.id !== req.user.id) {
     return res.status(403).json({ error: "Forbidden" });
   }
-
+  if (rfq.status === "CONVERTED_TO_ORDER" || rfq.order.length) {
+    return res.status(400).json({ error: "This RFQ is already converted to an order" });
+  }
+  if (rfq.status !== "QUOTED" && rfq.status !== "NEGOTIATION") {
+    return res.status(400).json({ error: "This RFQ does not have an active quotation to confirm" });
+  }
   if (!rfq.quotations?.length) {
     return res.status(400).json({ error: "No quotation available for this RFQ" });
   }
 
   const quotation = rfq.quotations[0]!;
+  if (quotation.validityDate && quotation.validityDate.getTime() < Date.now()) {
+    return res.status(400).json({ error: "This quotation has expired. Please request a revised quote." });
+  }
+
   const generatedOrderNumber = `QUM-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
   const orderItemsData = rfq.items.map((item) => {
@@ -233,7 +351,7 @@ router.post("/:rfqId/confirm", requireAuth(["BUYER"]), async (req, res) => {
         create: {
           status: "CONTAINER_BOOKING",
           changedById: req.user.id,
-          note: parsedBody.data.notes,
+          note: parsedBody.data.notes ?? "Buyer confirmed quotation",
         },
       },
     },
@@ -241,26 +359,66 @@ router.post("/:rfqId/confirm", requireAuth(["BUYER"]), async (req, res) => {
       items: true,
       statusHistory: true,
       destinationPort: true,
-      buyer: true,
+      buyer: { select: publicUserSelect },
     },
   });
+
+  if (parsedBody.data.notes?.trim()) {
+    await addRfqMessage(rfq.id, req.user.id, parsedBody.data.notes);
+  } else {
+    await addRfqMessage(rfq.id, req.user.id, `Order confirmed (${generatedOrderNumber}).`);
+  }
 
   await prisma.rFQ.update({
     where: { id: rfq.id },
     data: { status: "CONVERTED_TO_ORDER" },
   });
 
-  try {
-    await sendEventEmail("ORDER_CONFIRMED", rfq.buyer.email);
-    if (process.env.ADMIN_NOTIFICATION_EMAIL) {
-      await sendEventEmail("ORDER_CONFIRMED", process.env.ADMIN_NOTIFICATION_EMAIL);
-    }
-  } catch {
-    // ignore
-  }
+  await notifyBuyerAndAdmin("ORDER_CONFIRMED", rfq.buyer.email, {
+    "Order number": order.orderNumber,
+    "RFQ ID": `#${rfq.id}`,
+    Amount: `${totalAmount.toFixed(2)} ${quotation.currency}`,
+    Destination: rfq.destinationPort.name,
+  });
 
   return res.status(201).json({ order });
 });
 
-export const rfqRouter = router;
+router.post("/:rfqId/messages", requireAuth(), async (req, res) => {
+  const parsed = z.object({ body: z.string().min(1).max(4000) }).safeParse(req.body);
+  if (!parsed.success || !req.user) {
+    return res.status(400).json({ error: "Please write a message." });
+  }
 
+  const rfq = await prisma.rFQ.findUnique({
+    where: { id: Number(req.params.rfqId) },
+    include: { buyer: { select: publicUserSelect } },
+  });
+  if (!rfq) return res.status(404).json({ error: "RFQ not found" });
+
+  const isBuyer = req.user.role === "BUYER";
+  if (isBuyer && rfq.buyerId !== req.user.id) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  const message = await addRfqMessage(rfq.id, req.user.id, parsed.data.body);
+  if (isBuyer && (rfq.status === "QUOTED" || rfq.status === "SUBMITTED" || rfq.status === "UNDER_REVIEW")) {
+    await prisma.rFQ.update({
+      where: { id: rfq.id },
+      data: { status: rfq.status === "QUOTED" ? "NEGOTIATION" : rfq.status },
+    });
+  }
+
+  const notifyTo = isBuyer ? process.env.ADMIN_NOTIFICATION_EMAIL : rfq.buyer.email;
+  if (notifyTo) {
+    await sendEventEmail("RFQ_MESSAGE", notifyTo, {
+      "RFQ ID": `#${rfq.id}`,
+      From: req.user.email,
+      Message: parsed.data.body.trim(),
+    });
+  }
+
+  return res.status(201).json(message);
+});
+
+export const rfqRouter = router;

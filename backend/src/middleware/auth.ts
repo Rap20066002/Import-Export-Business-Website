@@ -8,7 +8,7 @@ export interface AuthUser {
   email: string;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
+const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 
 export function generateToken(payload: AuthUser) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
