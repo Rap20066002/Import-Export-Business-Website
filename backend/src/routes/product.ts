@@ -17,6 +17,7 @@ const productSchema = z.object({
   moq: z.number().int().positive(),
   containerCapacityTons: z.number().positive(),
   packagingOptions: z.string().min(1),
+  defaultPackagingKg: z.number().positive().optional(),
   incoterms: z.string().min(1),
   isActive: z.boolean().optional(),
   metaTitle: z.string().optional(),
@@ -46,6 +47,7 @@ router.post("/", requireAuth(["SUPER_ADMIN", "SALES_MANAGER"]), async (req, res)
     originCountryId: Number(req.body.originCountryId),
     moq: Number(req.body.moq),
     containerCapacityTons: Number(req.body.containerCapacityTons),
+    defaultPackagingKg: req.body.defaultPackagingKg ? Number(req.body.defaultPackagingKg) : undefined,
   });
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid input", details: parsed.error.flatten() });

@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import { useAuth } from "@/lib/auth";
 import type { Locale } from "@/lib/i18n";
+import { PasswordField } from "@/components/password-field";
 
 type Props = { params: { locale: Locale } };
 
@@ -50,16 +51,15 @@ export default function BuyerLoginPage({ params }: Props) {
               autoComplete="email"
             />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">Password</label>
-            <input
-              type="password"
-              className="w-full rounded-md border px-3 py-2 text-sm"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-            />
+          <PasswordField
+            value={password}
+            onChange={setPassword}
+            autoComplete="current-password"
+          />
+          <div className="-mt-2 text-right">
+            <Link className="text-xs text-emerald-700 hover:underline" href={`/${params.locale}/forgot-password`}>
+              Forgot password?
+            </Link>
           </div>
 
           {error && <p className="text-xs text-red-600">{error}</p>}

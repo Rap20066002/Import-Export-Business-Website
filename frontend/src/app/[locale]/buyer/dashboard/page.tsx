@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
 import type { Locale } from "@/lib/i18n";
+import { RfqThread, type RfqThreadMessage } from "@/components/rfq-thread";
+import { isQuoteExpired } from "@/lib/trade";
 
 type Props = { params: { locale: Locale } };
 
@@ -28,9 +31,16 @@ type RFQ = {
   status: RFQStatus;
   createdAt: string;
   quantityContainers: number;
+  containerType?: string;
+  packagingKg?: number;
+  numberOfBoxes?: number;
   incoterm: string;
-  quotations?: { id: number; pricePerTon: number; currency: string; validityDate: string }[];
+  items?: { product: { nameEn: string } }[];
+  notes?: string | null;
+  grade?: string | null;
+  quotations?: { id: number; pricePerTon: number; currency: string; validityDate: string; notes?: string | null }[];
   order?: { id: number; orderNumber: string }[];
+  messages?: RfqThreadMessage[];
 };
 
 type Order = {
@@ -47,36 +57,33 @@ export default function BuyerDashboard({ params }: Props) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<number | null>(null);
+  const [openThreadId, setOpenThreadId] = useState<number | null>(null);
+
+  const refresh = useCallback(async () => {
+    if (!token) return;
+    const [rfqData, orderData] = await Promise.all([
+      apiFetch<RFQ[]>("/rfqs", { token }),
+      apiFetch<Order[]>("/orders", { token }),
+    ]);
+    setRfqs(rfqData);
+    setOrders(orderData);
+  }, [token]);
 
   useEffect(() => {
     if (!token) return;
-    Promise.all([
-      apiFetch<RFQ[]>("/rfqs", { token }),
-      apiFetch<Order[]>("/orders", { token }),
-    ])
-      .then(([rfqData, orderData]) => {
-        setRfqs(rfqData);
-        setOrders(orderData);
-      })
-      .catch((err: unknown) => {
-        const message =
-          err instanceof Error ? err.message : "Failed to load dashboard data.";
-        setError(message);
-      });
-  }, [token]);
+    refresh().catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : "Failed to load dashboard data.";
+      setError(message);
+    });
+  }, [token, refresh]);
 
   const onConfirmOrder = async (rfqId: number) => {
     if (!token) return;
+    const notes = window.prompt("Optional note for the sales team (packing, payment, delivery window)") || undefined;
     setConfirming(rfqId);
     try {
-      await apiFetch(`/rfqs/${rfqId}/confirm`, { method: "POST", token, body: {} });
-      // refresh
-      const [rfqData, orderData] = await Promise.all([
-        apiFetch<RFQ[]>("/rfqs", { token }),
-        apiFetch<Order[]>("/orders", { token }),
-      ]);
-      setRfqs(rfqData);
-      setOrders(orderData);
+      await apiFetch(`/rfqs/${rfqId}/confirm`, { method: "POST", token, body: { notes } });
+      await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to confirm order");
     } finally {
@@ -103,8 +110,16 @@ export default function BuyerDashboard({ params }: Props) {
           </p>
         </div>
         {user && (
-          <div className="rounded-full bg-slate-900 text-white px-4 py-2 text-xs">
-            {user.name} · {user.company || user.email}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="rounded-full bg-slate-900 text-white px-4 py-2 text-xs">
+              {user.name} · {user.company || user.email}
+            </div>
+            <Link
+              href={`/${params.locale}/account`}
+              className="inline-flex items-center justify-center rounded-full border border-emerald-300 bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+            >
+              Change password
+            </Link>
           </div>
         )}
       </div>
@@ -118,6 +133,7 @@ export default function BuyerDashboard({ params }: Props) {
             <thead className="bg-slate-50 text-slate-500">
               <tr>
                 <th className="px-3 py-2 text-left">RFQ ID</th>
+                <th className="px-3 py-2 text-left">Product</th>
                 <th className="px-3 py-2 text-left">Status</th>
                 <th className="px-3 py-2 text-left">Quotation</th>
                 <th className="px-3 py-2 text-left">Quantity (containers)</th>
@@ -129,7 +145,7 @@ export default function BuyerDashboard({ params }: Props) {
             <tbody>
               {rfqs.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-3 py-4 text-center text-slate-500">
+                  <td colSpan={8} className="px-3 py-4 text-center text-slate-500">
                     No RFQs yet. Once you submit, they will appear here.
                   </td>
                 </tr>
@@ -137,42 +153,86 @@ export default function BuyerDashboard({ params }: Props) {
               {rfqs.map((rfq) => (
                 <tr key={rfq.id} className="border-t">
                   <td className="px-3 py-2 font-medium text-slate-900">#{rfq.id}</td>
+                  <td className="px-3 py-2 text-slate-700">
+                    {rfq.items?.map((item) => item.product.nameEn).join(", ") || "-"}
+                  </td>
                   <td className="px-3 py-2">
                     <StatusPill label={rfq.status} />
                   </td>
                   <td className="px-3 py-2 text-slate-700">
-                    {rfq.status === "QUOTED" && rfq.quotations?.length ? (
+                    {rfq.quotations?.length && (rfq.status === "QUOTED" || rfq.status === "NEGOTIATION") ? (
                       <>
                         {rfq.quotations[0].pricePerTon.toFixed(2)} {rfq.quotations[0].currency}
+                        {rfq.quotations[0].validityDate ? (
+                          <div
+                            className={`text-[11px] ${
+                              isQuoteExpired(rfq.quotations[0].validityDate) ? "font-semibold text-red-600" : "text-slate-500"
+                            }`}
+                          >
+                            {isQuoteExpired(rfq.quotations[0].validityDate)
+                              ? `Expired ${new Date(rfq.quotations[0].validityDate).toLocaleDateString()}`
+                              : `Valid until ${new Date(rfq.quotations[0].validityDate).toLocaleDateString()}`}
+                          </div>
+                        ) : null}
+                        {rfq.quotations[0].notes ? (
+                          <div className="text-[11px] text-slate-500">{rfq.quotations[0].notes}</div>
+                        ) : null}
                       </>
                     ) : (
                       "-"
                     )}
                   </td>
-                  <td className="px-3 py-2">{rfq.quantityContainers}</td>
+                  <td className="px-3 py-2">
+                    {rfq.quantityContainers}
+                    {rfq.numberOfBoxes ? (
+                      <div className="text-[11px] text-slate-500">
+                        {rfq.numberOfBoxes} boxes
+                        {rfq.packagingKg ? ` × ${rfq.packagingKg} kg` : ""}
+                      </div>
+                    ) : null}
+                  </td>
                   <td className="px-3 py-2">{rfq.incoterm}</td>
                   <td className="px-3 py-2 text-slate-500">
                     {new Date(rfq.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-3 py-2">
-                    {rfq.status === "QUOTED" && !rfq.order?.length ? (
+                    <div className="flex flex-col gap-1">
+                      {(rfq.status === "QUOTED" || rfq.status === "NEGOTIATION") && !rfq.order?.length ? (
+                        isQuoteExpired(rfq.quotations?.[0]?.validityDate) ? (
+                          <span className="text-[11px] font-medium text-red-600">Quote expired — ask for a revised quote</span>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={confirming === rfq.id}
+                            onClick={() => onConfirmOrder(rfq.id)}
+                            className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-60"
+                          >
+                            {confirming === rfq.id ? "Confirming..." : "Confirm order"}
+                          </button>
+                        )
+                      ) : null}
                       <button
                         type="button"
-                        disabled={confirming === rfq.id}
-                        onClick={() => onConfirmOrder(rfq.id)}
-                        className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-60"
+                        onClick={() => setOpenThreadId(openThreadId === rfq.id ? null : rfq.id)}
+                        className="inline-flex items-center justify-center rounded-full border px-3 py-1 text-[11px] font-semibold text-slate-700 hover:border-slate-300"
                       >
-                        {confirming === rfq.id ? "Confirming..." : "Confirm order"}
+                        {(rfq.messages?.length || 0) > 0 ? `${rfq.messages?.length} notes` : "Notes"}
                       </button>
-                    ) : (
-                      <span className="text-[11px] text-slate-400">-</span>
-                    )}
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        {openThreadId && token ? (
+          <RfqThread
+            rfqId={openThreadId}
+            token={token}
+            messages={rfqs.find((r) => r.id === openThreadId)?.messages || []}
+            onPosted={refresh}
+          />
+        ) : null}
       </section>
 
       <section className="space-y-3">

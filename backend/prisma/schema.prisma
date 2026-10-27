@@ -29,6 +29,7 @@ model User {
   statusChanges     OrderStatusHistory[]
   uploadedDocuments Document[]
   rfqMessages       RfqMessage[]
+  recordedPayments  OrderPayment[] @relation("RecordedPayments")
 }
 
 enum UserRole {
@@ -74,6 +75,7 @@ model Product {
   moq             Int        // minimum order quantity in containers
   containerCapacityTons Float
   packagingOptions String
+  defaultPackagingKg Float    @default(5)
   incoterms       String
   isActive        Boolean    @default(true)
   metaTitle       String?
@@ -94,7 +96,11 @@ model RFQ {
   destinationPortId Int
   incoterm         Incoterm
   quantityContainers Int
+  containerType    ContainerType @default(DRY_20)
+  packagingKg      Float         @default(5)
+  numberOfBoxes    Int           @default(1)
   targetPricePerTon Float?
+  targetPriceCurrency String?
   grade            String?
   notes            String?
   companyDocumentKey String?
@@ -144,6 +150,12 @@ enum Incoterm {
   CFR
 }
 
+enum ContainerType {
+  DRY_20
+  DRY_40
+  REEFER
+}
+
 model Quotation {
   id              Int       @id @default(autoincrement())
   rfqId           Int
@@ -167,6 +179,11 @@ model Order {
   status           OrderStatus        @default(AWAITING_CONFIRMATION)
   totalAmount      Float?
   currency         String?
+  estimatedWeightTons Float?
+  finalWeightTons  Float?
+  invoicedAmount   Float?
+  amountReceived   Float              @default(0)
+  settlementNote   String?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
@@ -176,6 +193,19 @@ model Order {
   items            OrderItem[]
   statusHistory    OrderStatusHistory[]
   documents        Document[]
+  payments         OrderPayment[]
+}
+
+model OrderPayment {
+  id          Int      @id @default(autoincrement())
+  orderId     Int
+  amount      Float
+  note        String?
+  receivedAt  DateTime @default(now())
+  recordedById String
+
+  order      Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  recordedBy User  @relation("RecordedPayments", fields: [recordedById], references: [id])
 }
 
 model OrderItem {

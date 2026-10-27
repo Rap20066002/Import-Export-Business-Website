@@ -21,7 +21,7 @@ export default function BuyerOrderDocumentsPage({ params }: Props) {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [docType, setDocType] = useState<
     "PROFORMA_INVOICE" | "COMMERCIAL_INVOICE" | "PACKING_LIST" | "BILL_OF_LADING" | "PHYTOSANITARY_CERTIFICATE" | "OTHER"
-  >("COMMERCIAL_INVOICE");
+  >("OTHER");
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,7 +112,8 @@ export default function BuyerOrderDocumentsPage({ params }: Props) {
     <div className="max-w-4xl mx-auto px-4 py-10 text-sm">
       <h1 className="text-2xl font-semibold text-slate-900 mb-2">Order documents</h1>
       <p className="text-slate-600 mb-6">
-        Upload/download shipment documents privately for your order.
+        Official shipping documents (proforma, invoice, packing list, B/L, phytosanitary) are uploaded by
+        our team. Buyers can upload supporting files such as payment proof or LC copies as &quot;Other&quot;.
       </p>
 
       {error && <p className="text-xs text-red-600 mb-4">{error}</p>}
@@ -193,18 +194,23 @@ export default function BuyerOrderDocumentsPage({ params }: Props) {
                   )
                 }
               >
-                <option value="PROFORMA_INVOICE">Proforma invoice</option>
-                <option value="COMMERCIAL_INVOICE">Commercial invoice</option>
-                <option value="PACKING_LIST">Packing list</option>
-                <option value="BILL_OF_LADING">Bill of lading</option>
-                <option value="PHYTOSANITARY_CERTIFICATE">Phytosanitary certificate</option>
-                <option value="OTHER">Other</option>
+                {user?.role === "BUYER" ? null : (
+                  <>
+                    <option value="PROFORMA_INVOICE">Proforma invoice</option>
+                    <option value="COMMERCIAL_INVOICE">Commercial invoice</option>
+                    <option value="PACKING_LIST">Packing list</option>
+                    <option value="BILL_OF_LADING">Bill of lading</option>
+                    <option value="PHYTOSANITARY_CERTIFICATE">Phytosanitary certificate</option>
+                  </>
+                )}
+                <option value="OTHER">Other (payment proof / LC / supporting)</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">File (PDF recommended)</label>
+              <label className="block text-xs font-medium text-slate-700 mb-1">File (PDF, Word, or image · max 10MB)</label>
               <input
                 type="file"
+                accept="application/pdf,image/*,.doc,.docx"
                 className="block w-full text-xs text-slate-600"
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
                 required

@@ -15,6 +15,7 @@ export type AuthUser = {
   name: string;
   role: Role;
   company?: string | null;
+  phone?: string | null;
 };
 
 type AuthContextValue = {
@@ -26,7 +27,8 @@ type AuthContextValue = {
     name: string;
     email: string;
     password: string;
-    company?: string;
+    company: string;
+    phone?: string;
   }) => Promise<void>;
   logout: () => void;
 };
@@ -74,7 +76,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     name: string;
     email: string;
     password: string;
-    company?: string;
+    company: string;
+    phone?: string;
   }) => {
     const res = await apiFetch<{ token: string; user: AuthUser }>("/auth/register-buyer", {
       method: "POST",

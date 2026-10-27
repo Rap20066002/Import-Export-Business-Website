@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import { useAuth } from "@/lib/auth";
 import type { Locale } from "@/lib/i18n";
+import { PasswordField } from "@/components/password-field";
 
 type Props = { params: { locale: Locale } };
 
@@ -15,6 +16,7 @@ export default function BuyerRegisterPage({ params }: Props) {
 
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -27,7 +29,8 @@ export default function BuyerRegisterPage({ params }: Props) {
     try {
       await registerBuyer({
         name,
-        company: company.trim().length ? company : undefined,
+        company: company.trim(),
+        phone: phone.trim() || undefined,
         email,
         password,
       });
@@ -58,12 +61,23 @@ export default function BuyerRegisterPage({ params }: Props) {
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-700 mb-1">Company (optional)</label>
+          <label className="block text-xs font-medium text-slate-700 mb-1">Company</label>
           <input
             className="w-full rounded-md border px-3 py-2 text-sm"
             value={company}
             onChange={(e) => setCompany(e.target.value)}
+            required
             autoComplete="organization"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-700 mb-1">WhatsApp / phone (with country code)</label>
+          <input
+            className="w-full rounded-md border px-3 py-2 text-sm"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="+971 50 000 0000"
+            autoComplete="tel"
           />
         </div>
         <div>
@@ -77,18 +91,12 @@ export default function BuyerRegisterPage({ params }: Props) {
             autoComplete="email"
           />
         </div>
-        <div>
-          <label className="block text-xs font-medium text-slate-700 mb-1">Password</label>
-          <input
-            type="password"
-            className="w-full rounded-md border px-3 py-2 text-sm"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={8}
-            autoComplete="new-password"
-          />
-        </div>
+        <PasswordField
+          value={password}
+          onChange={setPassword}
+          autoComplete="new-password"
+          minLength={8}
+        />
 
         {error && <p className="text-xs text-red-600">{error}</p>}
 

@@ -16,22 +16,22 @@ export type HomeShowcaseItem = {
 
 export const homeShowcaseProducts: HomeShowcaseItem[] = [
   {
-    slug: "indian-banana-exporter",
-    titleEn: "Bananas",
+    slug: "export-bananas",
+    titleEn: "Banana",
     taglineEn: "India-origin · container-grade · RFQ pricing",
     image: "/media/products/bananas-01.jpg",
     imageAltEn: "Fresh bananas — export quality",
   },
   {
-    slug: "iranian-mazafati-dates-supplier",
-    titleEn: "Mazafati dates",
+    slug: "mazafati-kimia-dates",
+    titleEn: "Mazafati (Kimia)",
     taglineEn: "Iran-origin · cold chain aware · documentation ready",
     image: "/media/products/dates-01.jpg",
     imageAltEn: "Premium dates — Mazafati style presentation",
   },
   {
-    slug: "apple-import-export-iran",
-    titleEn: "Apples",
+    slug: "export-apples",
+    titleEn: "Apple",
     taglineEn: "Multi-origin · graded lots · shipment planning",
     image: "/media/products/apples-01.jpg",
     imageAltEn: "Fresh apples — graded for export",

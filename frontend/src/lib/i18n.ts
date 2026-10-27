@@ -9,7 +9,7 @@ type Messages = Record<Namespace, Record<string, string>>;
 const messages: Record<Locale, Messages> = {
   en: {
     common: {
-      companyName: "Qum Plastic Industries - International Agro & Commodity Trade",
+      companyName: "Qum Impex - International Agro & Commodity Trade",
       navHome: "Home",
       navAbout: "About",
       navTradeProcess: "Trade Process",
@@ -25,11 +25,11 @@ const messages: Record<Locale, Messages> = {
         "Connecting India, Iran, UAE and Iraq with reliable, compliant and timely agro commodity exports.",
       heroBadge: "B2B • RFQ-based • No public pricing",
       countriesTitle: "Trade Corridors",
-      whyTitle: "Why Qum Plastic Industries",
+      whyTitle: "Why Qum Impex",
       trustTitle: "Partners Trusting Our Team",
     },
     about: {
-      title: "About Qum Plastic Industries",
+      title: "About Qum Impex",
     },
     trade: {
       title: "How Our Trade Process Works",

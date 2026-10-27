@@ -1,8 +1,8 @@
+import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { prisma } from "../src/lib/prisma";
 
 async function main() {
-  // Countries
   const countries = [
     { name: "India", code: "IN" },
     { name: "Iran", code: "IR" },
@@ -35,7 +35,6 @@ async function main() {
     return c.id;
   };
 
-  // Ports
   const ports = [
     { name: "Nhava Sheva (JNPT)", code: "INNSA", countryCode: "IN" },
     { name: "Jebel Ali Port", code: "AEJEA", countryCode: "AE" },
@@ -79,125 +78,176 @@ async function main() {
     return port.id;
   };
 
-  // Products
   const indiaId = await getCountryId("IN");
   const iranId = await getCountryId("IR");
-
-  const productBananas = await prisma.product.upsert({
-    where: { slug: "indian-banana-exporter" },
-    update: {},
-    create: {
-      slug: "indian-banana-exporter",
-      nameEn: "Bananas",
-      nameFa: "موز",
-      descriptionEn: "RFQ-based banana export from India for container-scale procurement.",
-      descriptionFa: "صادرات موز از هند برای خرید کانتینری مبتنی بر درخواست قیمت.",
-      originCountryId: indiaId,
-      moq: 1,
-      containerCapacityTons: 20,
-      packagingOptions: "18kg cartons / palletized",
-      incoterms: "FOB,CIF,CFR",
-      isActive: true,
-      metaTitle: "Banana exporter from India | Qum Plastic Industries",
-      metaDescription: "Banana exporter from India. RFQ-based quotations for container-scale shipments.",
-    },
-  });
-
-  const productDates = await prisma.product.upsert({
-    where: { slug: "iranian-mazafati-dates-supplier" },
-    update: {},
-    create: {
-      slug: "iranian-mazafati-dates-supplier",
-      nameEn: "Mazafati Dates",
-      nameFa: "خرما مضافتی",
-      descriptionEn: "RFQ-based Mazafati dates supplier with documentation support.",
-      descriptionFa: "تامین خرما مضافتی بر اساس RFQ با پشتیبانی اسناد تجاری.",
-      originCountryId: iranId,
-      moq: 1,
-      containerCapacityTons: 18,
-      packagingOptions: "25kg boxes / palletized",
-      incoterms: "FOB,CIF,CFR",
-      isActive: true,
-      metaTitle: "Iranian Mazafati dates supplier | Qum Plastic Industries",
-      metaDescription: "Iranian Mazafati dates supplier. RFQ-based quotations and compliant export documents.",
-    },
-  });
-
-  const productApples = await prisma.product.upsert({
-    where: { slug: "apple-import-export-iran" },
-    update: {},
-    create: {
-      slug: "apple-import-export-iran",
-      nameEn: "Apples (Import/Export)",
-      nameFa: "سیب",
-      descriptionEn: "RFQ-based apples import/export with multi-origin coordination.",
-      descriptionFa: "سیب بر اساس RFQ با هماهنگی واردات/صادرات چندمبدا.",
-      originCountryId: iranId,
-      moq: 1,
-      containerCapacityTons: 21,
-      packagingOptions: "450g trays / palletized",
-      incoterms: "FOB,CIF,CFR",
-      isActive: true,
-      metaTitle: "Apple importer and exporter – Iran | Qum Plastic Industries",
-      metaDescription: "Apple importer and exporter – Iran. Request quotation privately for container shipments.",
-    },
-  });
-
-  // Link products to loading ports (best-effort)
   const indiaLoadingPortId = await getPortId("INNSA");
   const iranLoadingPortId = await getPortId("IRRAJ");
 
-  await prisma.product.update({
-    where: { id: productBananas.id },
-    data: {
-      loadingPorts: { connect: [{ id: indiaLoadingPortId }] },
+  await prisma.product.updateMany({
+    where: {
+      slug: {
+        in: ["indian-banana-exporter", "iranian-mazafati-dates-supplier", "apple-import-export-iran"],
+      },
     },
-  });
-  await prisma.product.update({
-    where: { id: productDates.id },
-    data: {
-      loadingPorts: { connect: [{ id: iranLoadingPortId }] },
-    },
-  });
-  await prisma.product.update({
-    where: { id: productApples.id },
-    data: {
-      loadingPorts: { connect: [{ id: iranLoadingPortId }] },
-    },
+    data: { isActive: false },
   });
 
-  // Internal users (admin/sales/logistics) for testing the dashboard
-  const users = [
-    { email: "admin@qum.test", name: "Qum Admin", company: "Qum Plastic Industries", role: "SUPER_ADMIN" as const, password: "Admin12345!" },
-    { email: "sales@qum.test", name: "Qum Sales", company: "Qum Plastic Industries", role: "SALES_MANAGER" as const, password: "Sales12345!" },
-    { email: "logistics@qum.test", name: "Qum Logistics", company: "Qum Plastic Industries", role: "LOGISTICS_MANAGER" as const, password: "Logistics12345!" },
+  const catalog = [
+    {
+      slug: "rabbi-dates",
+      nameEn: "Rabbi Dates",
+      originCountryId: iranId,
+      loadingPortId: iranLoadingPortId,
+      defaultPackagingKg: 5,
+      packagingOptions: "5 kg mother box",
+      descriptionEn: "Iran-origin Rabbi dates. Standard packing 5 kg mother box; buyers can change packing on the RFQ.",
+    },
+    {
+      slug: "mazafati-kimia-dates",
+      nameEn: "Mazafati (Kimia) Dates",
+      originCountryId: iranId,
+      loadingPortId: iranLoadingPortId,
+      defaultPackagingKg: 6.5,
+      packagingOptions: "6.5 kg mother box",
+      descriptionEn: "Mazafati Kimia dates. Standard packing 6.5 kg mother box.",
+    },
+    {
+      slug: "mazafati-loose-dates",
+      nameEn: "Mazafati Loose Dates",
+      originCountryId: iranId,
+      loadingPortId: iranLoadingPortId,
+      defaultPackagingKg: 5,
+      packagingOptions: "5 kg mother box",
+      descriptionEn: "Mazafati loose dates with 5 kg mother-box packing.",
+    },
+    {
+      slug: "mazafati-semi-dry-dates",
+      nameEn: "Mazafati Semi Dry Dates",
+      originCountryId: iranId,
+      loadingPortId: iranLoadingPortId,
+      defaultPackagingKg: 5,
+      packagingOptions: "5 kg mother box",
+      descriptionEn: "Mazafati semi-dry dates with 5 kg mother-box packing.",
+    },
+    {
+      slug: "kaluteh-dates",
+      nameEn: "Kaluteh Dates",
+      originCountryId: iranId,
+      loadingPortId: iranLoadingPortId,
+      defaultPackagingKg: 5,
+      packagingOptions: "5 kg mother box",
+      descriptionEn: "Kaluteh dates, standard 5 kg mother-box packing.",
+    },
+    {
+      slug: "kabkab-dates",
+      nameEn: "Kabkab Dates",
+      originCountryId: iranId,
+      loadingPortId: iranLoadingPortId,
+      defaultPackagingKg: 1,
+      packagingOptions: "1 kg mother box",
+      descriptionEn: "Kabkab dates with 1 kg mother-box packing.",
+    },
+    {
+      slug: "shahani-dates",
+      nameEn: "Shahani Dates",
+      originCountryId: iranId,
+      loadingPortId: iranLoadingPortId,
+      defaultPackagingKg: 3,
+      packagingOptions: "3 kg mother box",
+      descriptionEn: "Shahani dates, standard 3 kg mother-box packing.",
+    },
+    {
+      slug: "zahedi-dates",
+      nameEn: "Zahedi Dates",
+      originCountryId: iranId,
+      loadingPortId: iranLoadingPortId,
+      defaultPackagingKg: 10,
+      packagingOptions: "10 kg mother box",
+      descriptionEn: "Zahedi dates with 10 kg mother-box packing.",
+    },
+    {
+      slug: "export-bananas",
+      nameEn: "Banana",
+      originCountryId: indiaId,
+      loadingPortId: indiaLoadingPortId,
+      defaultPackagingKg: 13,
+      packagingOptions: "13 kg mother box",
+      descriptionEn: "Export bananas from India. Standard packing 13 kg mother box.",
+    },
+    {
+      slug: "export-apples",
+      nameEn: "Apple",
+      originCountryId: iranId,
+      loadingPortId: iranLoadingPortId,
+      defaultPackagingKg: 10,
+      packagingOptions: "10 kg mother box",
+      descriptionEn: "Apples for import/export. Standard packing 10 kg mother box.",
+    },
   ];
 
-  for (const u of users) {
-    const passwordHash = await bcrypt.hash(u.password, 10);
-    await prisma.user.upsert({
-      where: { email: u.email },
-      update: { name: u.name, company: u.company, role: u.role, password: passwordHash },
-      create: {
-        email: u.email,
-        password: passwordHash,
-        name: u.name,
-        company: u.company,
-        role: u.role,
+  for (const item of catalog) {
+    const product = await prisma.product.upsert({
+      where: { slug: item.slug },
+      update: {
+        nameEn: item.nameEn,
+        descriptionEn: item.descriptionEn,
+        originCountryId: item.originCountryId,
+        defaultPackagingKg: item.defaultPackagingKg,
+        packagingOptions: item.packagingOptions,
+        isActive: true,
+        metaTitle: `${item.nameEn} | Qum Impex`,
+        metaDescription: item.descriptionEn,
       },
+      create: {
+        slug: item.slug,
+        nameEn: item.nameEn,
+        descriptionEn: item.descriptionEn,
+        originCountryId: item.originCountryId,
+        moq: 1,
+        containerCapacityTons: 20,
+        defaultPackagingKg: item.defaultPackagingKg,
+        packagingOptions: item.packagingOptions,
+        incoterms: "FOB,CIF,CFR",
+        isActive: true,
+        metaTitle: `${item.nameEn} | Qum Impex`,
+        metaDescription: item.descriptionEn,
+      },
+    });
+    await prisma.product.update({
+      where: { id: product.id },
+      data: { loadingPorts: { connect: [{ id: item.loadingPortId }] } },
     });
   }
 
-  // eslint-disable-next-line no-console
-  console.log("Seed complete");
+  await prisma.orderPayment.deleteMany();
+  await prisma.document.deleteMany();
+  await prisma.orderStatusHistory.deleteMany();
+  await prisma.orderItem.deleteMany();
+  await prisma.order.deleteMany();
+  await prisma.quotation.deleteMany();
+  await prisma.rfqMessage.deleteMany();
+  await prisma.rFQItem.deleteMany();
+  await prisma.rFQ.deleteMany();
+  await prisma.user.deleteMany();
+
+  const passwordHash = await bcrypt.hash("abc1234", 10);
+  await prisma.user.create({
+    data: {
+      email: "qumplastic.sales@gmail.com",
+      password: passwordHash,
+      name: "Qum Impex Admin",
+      company: "Qum Impex",
+      role: "SUPER_ADMIN",
+    },
+  });
+
+  console.log("Seed complete: catalog kept; users, RFQs, orders and revenue wiped; launch admin created");
 }
 
 main()
   .then(() => prisma.$disconnect())
   .catch(async (e) => {
-    // eslint-disable-next-line no-console
     console.error(e);
     await prisma.$disconnect();
     process.exit(1);
   });
-

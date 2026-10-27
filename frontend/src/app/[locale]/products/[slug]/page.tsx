@@ -25,14 +25,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const product = await fetchProduct(params.slug);
   if (!product) {
     return {
-      title: "Product not found - Qum Plastic Industries",
+      title: "Product not found - Qum Impex",
     };
   }
 
-  const title = product.metaTitle || `${product.nameEn} - Qum Plastic Industries`;
+  const title = product.metaTitle || `${product.nameEn} - Qum Impex`;
   const description =
     product.metaDescription ||
-    `RFQ-based ${product.nameEn.toLowerCase()} supply from Qum Plastic Industries with private quotations and documentation support.`;
+    `RFQ-based ${product.nameEn.toLowerCase()} supply from Qum Impex with private quotations and documentation support.`;
 
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://your-domain.com";
   const url = `${baseUrl}/${params.locale}/products/${product.slug}`;
@@ -74,7 +74,7 @@ export default async function ProductPage({ params }: Props) {
     category: "Agro commodity",
     brand: {
       "@type": "Organization",
-      name: "Qum Plastic Industries",
+      name: "Qum Impex",
     },
     offers: {
       "@type": "AggregateOffer",

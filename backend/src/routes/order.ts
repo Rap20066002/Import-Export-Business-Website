@@ -45,11 +45,12 @@ router.post("/convert-from-rfq", requireAuth(["SUPER_ADMIN", "SALES_MANAGER"]), 
       status: "AWAITING_CONFIRMATION",
       totalAmount: parsed.data.totalAmount,
       currency: parsed.data.currency,
+      estimatedWeightTons: (rfq.packagingKg * rfq.numberOfBoxes) / 1000,
       items: {
         create: rfq.items.map((item) => ({
           productId: item.productId,
-          quantityTons: rfq.quantityContainers * item.product.containerCapacityTons,
-          unitPrice: parsed.data.totalAmount / Math.max(rfq.quantityContainers, 1),
+          quantityTons: (rfq.packagingKg * rfq.numberOfBoxes) / 1000,
+          unitPrice: parsed.data.totalAmount / Math.max((rfq.packagingKg * rfq.numberOfBoxes) / 1000, 0.001),
         })),
       },
       statusHistory: {
@@ -83,6 +84,15 @@ router.get("/", requireAuth(), async (req, res) => {
       documents: {
         select: { id: true, type: true, fileName: true, uploadedAt: true },
         orderBy: { uploadedAt: "desc" },
+      },
+      payments: { orderBy: { receivedAt: "desc" } },
+      rfq: {
+        select: {
+          packagingKg: true,
+          numberOfBoxes: true,
+          containerType: true,
+          quantityContainers: true,
+        },
       },
     },
     orderBy: { createdAt: "desc" },
@@ -141,6 +151,89 @@ router.post(
     });
 
     return res.json({ ok: true });
+  }
+);
+
+router.post(
+  "/:orderId/settlement",
+  requireAuth(["SUPER_ADMIN", "SALES_MANAGER"]),
+  async (req, res) => {
+    const schema = z.object({
+      finalWeightTons: z.number().positive(),
+      unitPrice: z.number().positive().optional(),
+      invoicedAmount: z.number().nonnegative().optional(),
+      settlementNote: z.string().optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success || !req.user) {
+      return res.status(400).json({ error: "Enter final weight (tons). Invoice total is optional if unit price is set." });
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { id: Number(req.params.orderId) },
+      include: { items: true },
+    });
+    if (!order) return res.status(404).json({ error: "Order not found" });
+
+    const unitPrice = parsed.data.unitPrice ?? order.items[0]?.unitPrice ?? 0;
+    const invoicedAmount =
+      parsed.data.invoicedAmount ?? parsed.data.finalWeightTons * unitPrice;
+
+    const updated = await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        finalWeightTons: parsed.data.finalWeightTons,
+        invoicedAmount,
+        settlementNote: parsed.data.settlementNote,
+        totalAmount: invoicedAmount,
+      },
+    });
+
+    if (order.items.length && unitPrice) {
+      await prisma.orderItem.updateMany({
+        where: { orderId: order.id },
+        data: { quantityTons: parsed.data.finalWeightTons, unitPrice },
+      });
+    }
+
+    return res.json(updated);
+  }
+);
+
+router.post(
+  "/:orderId/payments",
+  requireAuth(["SUPER_ADMIN", "SALES_MANAGER"]),
+  async (req, res) => {
+    const schema = z.object({
+      amount: z.number().positive(),
+      note: z.string().optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success || !req.user) {
+      return res.status(400).json({ error: "Enter the amount received." });
+    }
+
+    const order = await prisma.order.findUnique({ where: { id: Number(req.params.orderId) } });
+    if (!order) return res.status(404).json({ error: "Order not found" });
+
+    await prisma.orderPayment.create({
+      data: {
+        orderId: order.id,
+        amount: parsed.data.amount,
+        note: parsed.data.note,
+        recordedById: req.user.id,
+      },
+    });
+
+    const payments = await prisma.orderPayment.findMany({ where: { orderId: order.id } });
+    const amountReceived = payments.reduce((sum, p) => sum + p.amount, 0);
+    const updated = await prisma.order.update({
+      where: { id: order.id },
+      data: { amountReceived },
+      include: { payments: { orderBy: { receivedAt: "desc" } } },
+    });
+
+    return res.status(201).json(updated);
   }
 );
 

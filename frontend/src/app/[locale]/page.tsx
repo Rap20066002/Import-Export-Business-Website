@@ -32,7 +32,7 @@ export default function HomePage({ params }: Props) {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "ImportExportCompany",
-    name: "Qum Plastic Industries",
+    name: "Qum Impex",
     description:
       "International agro & commodity trade platform (RFQ-based, private quotations) connecting India, Iran, UAE and Iraq.",
     areaServed: ["India", "Iran", "UAE", "Iraq"],

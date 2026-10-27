@@ -9,6 +9,8 @@ type Product = {
   nameEn: string;
   originCountry: { name: string };
   descriptionEn?: string | null;
+  defaultPackagingKg?: number;
+  packagingOptions?: string;
 };
 
 async function fetchProducts(): Promise<Product[]> {
@@ -43,9 +45,9 @@ export default async function ProductsPage({ params }: Props) {
               {p.originCountry.name}
             </div>
             <div className="text-sm font-semibold text-slate-900 mb-1">{p.nameEn}</div>
-            <div className="text-xs text-slate-600">
-              {p.descriptionEn ? p.descriptionEn : "Request an RFQ for pricing and availability."}
-            </div>
+            {p.packagingOptions ? (
+              <div className="text-[11px] text-slate-500">Packing: {p.packagingOptions}</div>
+            ) : null}
           </Link>
         ))}
       </div>

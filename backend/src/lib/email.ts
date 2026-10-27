@@ -7,7 +7,7 @@ const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
 const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
 const FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || process.env.SMTP_FROM_EMAIL || "no-reply@example.com";
-const COMPANY = "Qum Plastic Industries";
+const COMPANY = "Qum Impex";
 const SITE_URL = (process.env.FRONTEND_ORIGIN || "http://localhost:3000").split(",")[0]?.trim() || "http://localhost:3000";
 
 if (SENDGRID_KEY) {
@@ -33,7 +33,8 @@ export type EmailEvent =
   | "DOCUMENT_UPLOADED"
   | "CONTACT_INQUIRY"
   | "BUYER_WELCOME"
-  | "RFQ_MESSAGE";
+  | "RFQ_MESSAGE"
+  | "PASSWORD_RESET";
 
 export function isEmailConfigured() {
   return Boolean(SENDGRID_KEY || smtpTransport);
@@ -145,6 +146,10 @@ export async function sendEventEmail(
     RFQ_MESSAGE: {
       subject: `New message on RFQ — ${COMPANY}`,
       intro: "A new note was added to an RFQ conversation. Sign in to read and reply.",
+    },
+    PASSWORD_RESET: {
+      subject: `Temporary password — ${COMPANY}`,
+      intro: "Use this temporary password to sign in, then change it from Account in the menu.",
     },
   };
 

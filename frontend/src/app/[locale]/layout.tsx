@@ -53,11 +53,11 @@ export default function LocaleLayout({ children, params }: Props) {
             <div className="max-w-6xl mx-auto px-4 py-3.5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <Link href={`/${params.locale}`} className="flex items-center gap-3 group">
                 <span className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-900 text-xs font-bold text-white shadow-glow ring-1 ring-white/30">
-                  QP
+                    QI
                 </span>
                 <span className="flex flex-col leading-tight">
                   <span className="text-sm font-semibold tracking-tight text-slate-900 group-hover:text-emerald-800 transition-colors">
-                    Qum Plastic Industries
+                    Qum Impex
                   </span>
                   <span className="hidden sm:block text-[11px] text-slate-500">
                     International Agro & Commodity Trade
@@ -103,7 +103,7 @@ export default function LocaleLayout({ children, params }: Props) {
             <footer className="border-t border-slate-200/80 bg-gradient-to-b from-white to-slate-50">
             <div className="max-w-6xl mx-auto px-4 py-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-3 text-xs text-slate-600">
               <div className="space-y-2">
-                <div className="text-sm font-semibold text-slate-900 font-display">Qum Plastic Industries</div>
+                <div className="text-sm font-semibold text-slate-900 font-display">Qum Impex</div>
                 <p className="leading-relaxed">
                   B2B RFQ platform for agro commodities across India, Iran, UAE and Iraq — private quotations,
                   disciplined documentation, and shipment visibility.
@@ -126,9 +126,9 @@ export default function LocaleLayout({ children, params }: Props) {
               <div className="space-y-2 sm:col-span-2 lg:col-span-1">
                 <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Corridors</div>
                 <p className="leading-relaxed text-slate-500">
-                  India ⇄ Iran ⇄ UAE ⇄ Iraq · Bananas · Mazafati dates · Apples
+                  India ⇄ Iran ⇄ UAE ⇄ Iraq · Dates · Bananas · Apples
                 </p>
-                <p className="text-slate-400 pt-2">© {new Date().getFullYear()} Qum Plastic Industries.</p>
+                <p className="text-slate-400 pt-2">© {new Date().getFullYear()} Qum Impex.</p>
               </div>
             </div>
           </footer>

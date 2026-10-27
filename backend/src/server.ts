@@ -62,9 +62,9 @@ app.use("/api/orders", orderRouter);
 app.use("/api/products", productRouter);
 app.use("/api/inquiries", inquiryRouter);
 
-const port = process.env.PORT || 4000;
+const port = Number(process.env.PORT) || 4000;
 
-app.listen(port, () => {
+app.listen(port, "0.0.0.0", () => {
   // eslint-disable-next-line no-console
   console.log(`Backend API running on port ${port}`);
   if (!process.env.JWT_SECRET || process.env.JWT_SECRET === "replace-with-a-strong-secret") {

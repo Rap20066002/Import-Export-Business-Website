@@ -1,4 +1,4 @@
-# Qum Plastic Industries RFQ Platform
+# Qum Impex RFQ Platform
 
 Production-oriented B2B RFQ workflow for agro-commodity trading.
 
@@ -95,13 +95,13 @@ Frontend runs on `http://localhost:3000` (or `3001` if `3000` is busy).
 
 > The frontend dev script clears stale `.next` before start to reduce OneDrive lock issues.
 
-## Seeded Internal Test Accounts
+## Seeded launch admin
 
-After running `npx prisma db seed`:
+`npx prisma db seed` wipes users, RFQs, orders and revenue (products and ports stay), then creates:
 
-- `admin@qum.test` / `Admin12345!` (SUPER_ADMIN)
-- `sales@qum.test` / `Sales12345!` (SALES_MANAGER)
-- `logistics@qum.test` / `Logistics12345!` (LOGISTICS_MANAGER)
+- `qumplastic.sales@gmail.com` (SUPER_ADMIN)
+
+Change that password from **Change password** after first login. Re-running seed will wipe live trade data again.
 
 ## API Overview
 

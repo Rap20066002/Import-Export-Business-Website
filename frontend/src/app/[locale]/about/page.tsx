@@ -11,7 +11,7 @@ export default function AboutPage({ params }: Props) {
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">{t.about.title}</h1>
         <p className="mt-2 text-slate-600 max-w-2xl">
-          Qum Plastic Industries supports international agro & commodity trade with disciplined
+          Qum Impex supports international agro & commodity trade with disciplined
           documentation and logistics coordination.
         </p>
       </div>

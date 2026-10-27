@@ -31,10 +31,14 @@ export default function AuthActions({ locale }: Props) {
   }
 
   return (
-    <div className="inline-flex items-center gap-2">
-      <span className="hidden sm:inline text-[11px] text-slate-500">
-        {user.name} · {user.role}
-      </span>
+    <div className="inline-flex flex-wrap items-center gap-2">
+      <span className="text-[11px] text-slate-500">{user.name}</span>
+      <Link
+        href={`/${locale}/account`}
+        className="inline-flex items-center justify-center rounded-full border border-emerald-300 bg-emerald-50 px-3.5 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 transition-colors"
+      >
+        Change password
+      </Link>
       <button
         type="button"
         onClick={logout}

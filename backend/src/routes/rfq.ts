@@ -39,11 +39,19 @@ const rfqSchema = z.object({
   productIds: z.array(z.number()).min(1),
   grade: z.string().optional(),
   quantityContainers: z.number().int().positive(),
+  containerType: z.enum(["DRY_20", "DRY_40", "REEFER"]),
+  packagingKg: z.number().positive(),
+  numberOfBoxes: z.number().int().positive(),
   destinationPortId: z.number().int().positive(),
   incoterm: z.enum(["FOB", "CIF", "CFR"]),
   targetPricePerTon: z.number().positive().optional(),
+  targetPriceCurrency: z.string().min(3).max(8).optional(),
   notes: z.string().optional(),
 });
+
+function estimatedTons(packagingKg: number, numberOfBoxes: number) {
+  return (packagingKg * numberOfBoxes) / 1000;
+}
 
 function parseProductIds(raw: unknown): number[] {
   if (Array.isArray(raw)) return raw.map(Number).filter((n) => Number.isFinite(n));
@@ -68,7 +76,10 @@ router.post(
       productIds: parseProductIds(req.body.productIds),
       quantityContainers: Number(req.body.quantityContainers),
       destinationPortId: Number(req.body.destinationPortId),
+      packagingKg: Number(req.body.packagingKg),
+      numberOfBoxes: Number(req.body.numberOfBoxes),
       targetPricePerTon: req.body.targetPricePerTon ? Number(req.body.targetPricePerTon) : undefined,
+      targetPriceCurrency: req.body.targetPriceCurrency || undefined,
     });
     if (!parsed.success || !req.user) {
       return res.status(400).json({ error: "Invalid input. Check product, quantity, port, and incoterm." });
@@ -88,7 +99,11 @@ router.post(
         destinationPortId: parsed.data.destinationPortId,
         incoterm: parsed.data.incoterm,
         quantityContainers: parsed.data.quantityContainers,
+        containerType: parsed.data.containerType,
+        packagingKg: parsed.data.packagingKg,
+        numberOfBoxes: parsed.data.numberOfBoxes,
         targetPricePerTon: parsed.data.targetPricePerTon,
+        targetPriceCurrency: parsed.data.targetPriceCurrency ?? null,
         grade: parsed.data.grade,
         notes: parsed.data.notes,
         companyDocumentKey: documentKey,
@@ -114,11 +129,16 @@ router.post(
       Email: rfq.buyer.email,
       Phone: rfq.buyer.phone,
       Products: productNames,
-      Quantity: `${rfq.quantityContainers} container(s)`,
+      Quantity: `${rfq.quantityContainers} × ${rfq.containerType}`,
+      Packaging: `${rfq.packagingKg} kg / box`,
+      Boxes: rfq.numberOfBoxes,
+      "Est. weight": `${estimatedTons(rfq.packagingKg, rfq.numberOfBoxes).toFixed(3)} t`,
       Incoterm: rfq.incoterm,
       Destination: `${rfq.destinationPort.name}, ${rfq.destinationPort.country.name}`,
       Grade: rfq.grade,
-      "Target price": rfq.targetPricePerTon,
+      "Target price": rfq.targetPricePerTon
+        ? `${rfq.targetPricePerTon} ${rfq.targetPriceCurrency || "USD"} / t`
+        : undefined,
       Notes: rfq.notes,
     };
 
@@ -325,17 +345,18 @@ router.post("/:rfqId/confirm", requireAuth(["BUYER"]), async (req, res) => {
   }
 
   const generatedOrderNumber = `QUM-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+  const estimatedWeightTons =
+    rfq.packagingKg && rfq.numberOfBoxes
+      ? estimatedTons(rfq.packagingKg, rfq.numberOfBoxes)
+      : rfq.items.reduce((sum, item) => sum + rfq.quantityContainers * item.product.containerCapacityTons, 0);
 
-  const orderItemsData = rfq.items.map((item) => {
-    const tons = rfq.quantityContainers * item.product.containerCapacityTons;
-    return {
-      productId: item.productId,
-      quantityTons: tons,
-      unitPrice: quotation.pricePerTon,
-    };
-  });
+  const orderItemsData = rfq.items.map((item) => ({
+    productId: item.productId,
+    quantityTons: estimatedWeightTons,
+    unitPrice: quotation.pricePerTon,
+  }));
 
-  const totalAmount = orderItemsData.reduce((sum, i) => sum + i.quantityTons * i.unitPrice, 0);
+  const quotedEstimate = estimatedWeightTons * quotation.pricePerTon;
 
   const order = await prisma.order.create({
     data: {
@@ -344,7 +365,9 @@ router.post("/:rfqId/confirm", requireAuth(["BUYER"]), async (req, res) => {
       rfqId: rfq.id,
       destinationPortId: rfq.destinationPortId,
       status: "CONTAINER_BOOKING",
-      totalAmount,
+      totalAmount: quotedEstimate,
+      estimatedWeightTons,
+      amountReceived: 0,
       currency: quotation.currency,
       items: { create: orderItemsData },
       statusHistory: {
@@ -377,7 +400,8 @@ router.post("/:rfqId/confirm", requireAuth(["BUYER"]), async (req, res) => {
   await notifyBuyerAndAdmin("ORDER_CONFIRMED", rfq.buyer.email, {
     "Order number": order.orderNumber,
     "RFQ ID": `#${rfq.id}`,
-    Amount: `${totalAmount.toFixed(2)} ${quotation.currency}`,
+    "Quoted estimate": `${quotedEstimate.toFixed(2)} ${quotation.currency}`,
+    "Est. weight": `${estimatedWeightTons.toFixed(3)} t`,
     Destination: rfq.destinationPort.name,
   });
 
