@@ -17,6 +17,11 @@ dotenv.config();
 
 const app = express();
 
+// Render terminates TLS at a single reverse proxy and sets X-Forwarded-For.
+// Trust only that one hop so req.ip is the visitor, not the proxy, and so
+// spoofed extra forwarded IPs are ignored.
+app.set("trust proxy", 1);
+
 const configuredOrigins = (process.env.FRONTEND_ORIGIN || "")
   .split(",")
   .map((o) => o.trim())
