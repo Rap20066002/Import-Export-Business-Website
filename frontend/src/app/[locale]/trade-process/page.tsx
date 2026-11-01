@@ -1,7 +1,20 @@
+import type { Metadata } from "next";
+import Link from "next/link";
 import type { Locale } from "@/lib/i18n";
 import { getTranslations } from "@/lib/i18n";
+import { publicPageMetadata } from "@/lib/site";
 
 type Props = { params: { locale: Locale } };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  return publicPageMetadata({
+    locale: params.locale,
+    path: "trade-process",
+    title: "Trade process",
+    description:
+      "How Qum Industries handles B2B agro trade: RFQ, private quotation, order confirmation, documents and shipment stages.",
+  });
+}
 
 export default function TradeProcessPage({ params }: Props) {
   const t = getTranslations(params.locale);
@@ -38,6 +51,7 @@ export default function TradeProcessPage({ params }: Props) {
           Upload/download official documents through the secure documents section.
         </Step>
       </ol>
+      <TradeFooterLinks locale={params.locale} />
     </div>
   );
 }
@@ -53,6 +67,20 @@ function Step({ n, title, children }: { n: string; title: string; children: Reac
         <div className="text-xs text-slate-600 mt-1 leading-relaxed">{children}</div>
       </div>
     </li>
+  );
+}
+
+function TradeFooterLinks({ locale }: { locale: Locale }) {
+  return (
+    <p className="mt-8 text-sm text-slate-600">
+      <Link className="text-emerald-800 hover:underline" href={`/${locale}/products`}>
+        Products
+      </Link>
+      {" · "}
+      <Link className="text-emerald-800 hover:underline" href={`/${locale}/contact`}>
+        Contact
+      </Link>
+    </p>
   );
 }
 

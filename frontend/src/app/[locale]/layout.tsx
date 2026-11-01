@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AuthProvider } from "@/lib/auth";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import AuthActions from "@/components/auth-actions";
+import { COMPANY_NAME, publicPageMetadata } from "@/lib/site";
 
 const fontBody = Inter({
   subsets: ["latin"],
@@ -24,19 +25,13 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const t = getTranslations(params.locale);
-  return {
-    title: t.common.companyName,
+  return publicPageMetadata({
+    locale: params.locale,
+    path: "",
+    title: `${COMPANY_NAME} | Agro import and export`,
     description:
-      "B2B international agro & commodity trade platform specializing in bananas, dates, apples and more between India, Iran, UAE and Iraq.",
-    openGraph: {
-      title: t.common.companyName,
-      description:
-        "Banana exporter from India, Iranian dates supplier, Mazafati dates importer, apple importer from Iran and more.",
-      type: "website",
-      url: `https://your-domain.com/${params.locale}`,
-    },
-  };
+      "Qum Industries is an India-based B2B import-export company for agro commodities such as bananas, dates and apples. Quotations are private and RFQ-based.",
+  });
 }
 
 export default function LocaleLayout({ children, params }: Props) {
@@ -57,7 +52,7 @@ export default function LocaleLayout({ children, params }: Props) {
                 </span>
                 <span className="flex flex-col leading-tight">
                   <span className="text-sm font-semibold tracking-tight text-slate-900 group-hover:text-emerald-800 transition-colors">
-                    Qum Impex
+                    Qum Industries
                   </span>
                   <span className="hidden sm:block text-[11px] text-slate-500">
                     International Agro & Commodity Trade
@@ -103,7 +98,7 @@ export default function LocaleLayout({ children, params }: Props) {
             <footer className="border-t border-slate-200/80 bg-gradient-to-b from-white to-slate-50">
             <div className="max-w-6xl mx-auto px-4 py-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-3 text-xs text-slate-600">
               <div className="space-y-2">
-                <div className="text-sm font-semibold text-slate-900 font-display">Qum Impex</div>
+                <div className="text-sm font-semibold text-slate-900 font-display">Qum Industries</div>
                 <p className="leading-relaxed">
                   B2B RFQ platform for agro commodities across India, Iran, UAE and Iraq — private quotations,
                   disciplined documentation, and shipment visibility.
@@ -128,7 +123,7 @@ export default function LocaleLayout({ children, params }: Props) {
                 <p className="leading-relaxed text-slate-500">
                   India ⇄ Iran ⇄ UAE ⇄ Iraq · Dates · Bananas · Apples
                 </p>
-                <p className="text-slate-400 pt-2">© {new Date().getFullYear()} Qum Impex.</p>
+                <p className="text-slate-400 pt-2">© {new Date().getFullYear()} Qum Industries.</p>
               </div>
             </div>
           </footer>

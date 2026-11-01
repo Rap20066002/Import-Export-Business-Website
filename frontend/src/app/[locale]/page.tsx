@@ -3,46 +3,57 @@ import Image from "next/image";
 import Link from "next/link";
 import { type Locale, getTranslations } from "@/lib/i18n";
 import { homeHeroCollage, homeShowcaseProducts } from "@/content/home-showcase";
+import { COMPANY_NAME, jsonLdString, publicPageMetadata, siteBaseUrl } from "@/lib/site";
 
 type Props = {
   params: { locale: Locale };
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const t = getTranslations(params.locale);
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://your-domain.com";
-  const url = `${baseUrl}/${params.locale}`;
-  return {
-    title: t.common.companyName,
+  return publicPageMetadata({
+    locale: params.locale,
+    path: "",
+    title: `${COMPANY_NAME} | Agro import and export from India`,
     description:
-      "B2B RFQ-based international agro & commodity trade between India, Iran, UAE and Iraq. No public pricing.",
-    alternates: { canonical: url },
-    openGraph: {
-      title: t.common.companyName,
-      description:
-        "Request a quotation privately for container-scale shipments of bananas, dates, apples and more.",
-      url,
-      type: "website",
-    },
-  };
+      "Qum Industries is an India-based B2B import-export company for agro commodities including bananas, dates and apples. Request a private quotation for container-scale shipments.",
+    imagePath: "/media/products/bananas-01.jpg",
+    imageAlt: "Export bananas from Qum Industries",
+  });
 }
 
 export default function HomePage({ params }: Props) {
   const t = getTranslations(params.locale);
+  const origin = siteBaseUrl();
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "ImportExportCompany",
-    name: "Qum Impex",
-    description:
-      "International agro & commodity trade platform (RFQ-based, private quotations) connecting India, Iran, UAE and Iraq.",
-    areaServed: ["India", "Iran", "UAE", "Iraq"],
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${origin}/#organization`,
+        name: COMPANY_NAME,
+        url: origin,
+        email: "qumplastic.sales@gmail.com",
+        telephone: ["+91-9737141455", "+91-9909918714", "+98-9378198405"],
+        description:
+          "India-based B2B import-export company for agro commodities. Quotations are private and RFQ-based.",
+        areaServed: ["IN", "IR", "AE", "IQ"],
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${origin}/#website`,
+        name: COMPANY_NAME,
+        url: origin,
+        inLanguage: "en",
+        publisher: { "@id": `${origin}/#organization` },
+      },
+    ],
   };
 
   return (
     <div className="bg-slate-50">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }}
       />
       <section className="relative overflow-hidden border-b border-indigo-950/20 bg-gradient-to-br from-indigo-950 via-slate-900 to-fuchsia-950 text-white">
         <div className="pointer-events-none absolute inset-0 opacity-40 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-fuchsia-400/30 via-transparent to-transparent" />
@@ -98,7 +109,15 @@ export default function HomePage({ params }: Props) {
               >
                 <Image
                   src={src}
-                  alt={i === 0 ? "Agro trade showcase — hero" : `Agro trade showcase ${i + 1}`}
+                  alt={
+                    src.includes("banana")
+                      ? "Bananas for export"
+                      : src.includes("date")
+                        ? "Dates for export"
+                        : src.includes("apple")
+                          ? "Apples for export"
+                          : "Agro commodity ready for trade"
+                  }
                   fill
                   sizes="(max-width: 1024px) 50vw, 400px"
                   className="object-cover transition duration-700 hover:scale-105"
@@ -263,12 +282,20 @@ export default function HomePage({ params }: Props) {
               Share your requirements and receive private quotations from our internal sales team.
             </p>
           </div>
-          <Link
-            href={`/${params.locale}/buyer/rfq`}
-            className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-2.5 text-xs font-semibold text-white shadow-soft hover:bg-slate-800 transition-colors"
-          >
-            {t.common.ctaRequestQuote}
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href={`/${params.locale}/buyer/rfq`}
+              className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-2.5 text-xs font-semibold text-white shadow-soft hover:bg-slate-800 transition-colors"
+            >
+              {t.common.ctaRequestQuote}
+            </Link>
+            <Link
+              href={`/${params.locale}/contact`}
+              className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-2.5 text-xs font-semibold text-slate-800 hover:border-emerald-200 transition-colors"
+            >
+              Contact
+            </Link>
+          </div>
         </div>
       </section>
     </div>

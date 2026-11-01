@@ -7,7 +7,7 @@ const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
 const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
 const FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || process.env.SMTP_FROM_EMAIL || "no-reply@example.com";
-const COMPANY = "Qum Impex";
+const COMPANY = "Qum Industries";
 const SITE_URL = (process.env.FRONTEND_ORIGIN || "http://localhost:3000").split(",")[0]?.trim() || "http://localhost:3000";
 
 if (SENDGRID_KEY) {

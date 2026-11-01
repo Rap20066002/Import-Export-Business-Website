@@ -1,8 +1,22 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import type { Locale } from "@/lib/i18n";
 import { getTranslations } from "@/lib/i18n";
+import { publicPageMetadata } from "@/lib/site";
 
 type Props = { params: { locale: Locale } };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  return publicPageMetadata({
+    locale: params.locale,
+    path: "products",
+    title: "Agro products for export",
+    description:
+      "Browse Qum Industries agro commodities for B2B import and export, including bananas, dates and apples. Pricing is quoted privately by RFQ.",
+    imagePath: "/media/products/dates-01.jpg",
+    imageAlt: "Dates and other agro products for export",
+  });
+}
 
 type Product = {
   slug: string;
@@ -48,9 +62,19 @@ export default async function ProductsPage({ params }: Props) {
             {p.packagingOptions ? (
               <div className="text-[11px] text-slate-500">Packing: {p.packagingOptions}</div>
             ) : null}
+            <div className="mt-2 text-[11px] font-medium text-emerald-800">View product</div>
           </Link>
         ))}
       </div>
+      <p className="text-sm text-slate-600">
+        <Link className="text-emerald-800 hover:underline" href={`/${params.locale}/contact`}>
+          Contact
+        </Link>
+        {" · "}
+        <Link className="text-emerald-800 hover:underline" href={`/${params.locale}/trade-process`}>
+          Trade process
+        </Link>
+      </p>
     </div>
   );
 }

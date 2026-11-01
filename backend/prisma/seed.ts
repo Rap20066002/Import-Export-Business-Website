@@ -195,7 +195,7 @@ async function main() {
         defaultPackagingKg: item.defaultPackagingKg,
         packagingOptions: item.packagingOptions,
         isActive: true,
-        metaTitle: `${item.nameEn} | Qum Impex`,
+        metaTitle: `${item.nameEn} | Qum Industries`,
         metaDescription: item.descriptionEn,
       },
       create: {
@@ -209,7 +209,7 @@ async function main() {
         packagingOptions: item.packagingOptions,
         incoterms: "FOB,CIF,CFR",
         isActive: true,
-        metaTitle: `${item.nameEn} | Qum Impex`,
+        metaTitle: `${item.nameEn} | Qum Industries`,
         metaDescription: item.descriptionEn,
       },
     });
@@ -235,8 +235,8 @@ async function main() {
     data: {
       email: "qumplastic.sales@gmail.com",
       password: passwordHash,
-      name: "Qum Impex Admin",
-      company: "Qum Impex",
+      name: "Qum Industries Admin",
+      company: "Qum Industries",
       role: "SUPER_ADMIN",
     },
   });

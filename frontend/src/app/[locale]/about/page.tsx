@@ -1,7 +1,20 @@
+import type { Metadata } from "next";
+import Link from "next/link";
 import type { Locale } from "@/lib/i18n";
 import { getTranslations } from "@/lib/i18n";
+import { publicPageMetadata } from "@/lib/site";
 
 type Props = { params: { locale: Locale } };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  return publicPageMetadata({
+    locale: params.locale,
+    path: "about",
+    title: "About Qum Industries",
+    description:
+      "Qum Industries supports B2B agro import and export with RFQ-based quotations, shipment documentation and logistics coordination across India, Iran, UAE and Iraq.",
+  });
+}
 
 export default function AboutPage({ params }: Props) {
   const t = getTranslations(params.locale);
@@ -11,7 +24,7 @@ export default function AboutPage({ params }: Props) {
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">{t.about.title}</h1>
         <p className="mt-2 text-slate-600 max-w-2xl">
-          Qum Impex supports international agro & commodity trade with disciplined
+          Qum Industries supports international agro & commodity trade with disciplined
           documentation and logistics coordination.
         </p>
       </div>
@@ -32,6 +45,16 @@ export default function AboutPage({ params }: Props) {
           No public pricing. Quotes are provided privately per RFQ, destination port and Incoterms.
         </Card>
       </section>
+
+      <p className="text-sm text-slate-600">
+        <Link className="text-emerald-800 hover:underline" href={`/${params.locale}/products`}>
+          View products
+        </Link>
+        {" · "}
+        <Link className="text-emerald-800 hover:underline" href={`/${params.locale}/contact`}>
+          Contact
+        </Link>
+      </p>
     </div>
   );
 }

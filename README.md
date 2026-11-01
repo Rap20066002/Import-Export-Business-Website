@@ -1,4 +1,4 @@
-# Qum Impex RFQ Platform
+# Qum Industries RFQ Platform
 
 Production-oriented B2B RFQ workflow for agro-commodity trading.
 

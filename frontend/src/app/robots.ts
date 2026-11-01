@@ -1,17 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const PRODUCTION_SITE_URL = "https://qumindustries.com";
-
-function siteBaseUrl() {
-  const raw = (process.env.NEXT_PUBLIC_SITE_URL || PRODUCTION_SITE_URL).replace(/\/$/, "");
-  try {
-    const host = new URL(raw).hostname.toLowerCase();
-    if (host.endsWith(".onrender.com")) return PRODUCTION_SITE_URL;
-    return raw;
-  } catch {
-    return PRODUCTION_SITE_URL;
-  }
-}
+import { PRODUCTION_SITE_URL, siteBaseUrl } from "@/lib/site";
 
 export default function robots(): MetadataRoute.Robots {
   const baseUrl = siteBaseUrl();
@@ -20,8 +9,19 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
+        disallow: [
+          "/admin",
+          "/en/admin",
+          "/buyer",
+          "/en/buyer",
+          "/account",
+          "/en/account",
+          "/forgot-password",
+          "/en/forgot-password",
+        ],
       },
     ],
     sitemap: `${baseUrl}/sitemap.xml`,
+    host: baseUrl.replace(/^https?:\/\//, "") || PRODUCTION_SITE_URL.replace(/^https?:\/\//, ""),
   };
 }
