@@ -2,8 +2,21 @@ import type { MetadataRoute } from "next";
 
 type Product = { slug: string };
 
+const PRODUCTION_SITE_URL = "https://qumindustries.com";
+
+function siteBaseUrl() {
+  const raw = (process.env.NEXT_PUBLIC_SITE_URL || PRODUCTION_SITE_URL).replace(/\/$/, "");
+  try {
+    const host = new URL(raw).hostname.toLowerCase();
+    if (host.endsWith(".onrender.com")) return PRODUCTION_SITE_URL;
+    return raw;
+  } catch {
+    return PRODUCTION_SITE_URL;
+  }
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://your-domain.com";
+  const baseUrl = siteBaseUrl();
   const apiBase =
     process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api";
 
@@ -33,4 +46,3 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...productUrls,
   ] as MetadataRoute.Sitemap;
 }
-
