@@ -1,47 +1,17 @@
-import type { Metadata } from "next";
-import "../globals.css";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import Link from "next/link";
 import { AuthProvider } from "@/lib/auth";
-import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import AuthActions from "@/components/auth-actions";
-import { COMPANY_NAME, publicPageMetadata } from "@/lib/site";
-
-const fontBody = Inter({
-  subsets: ["latin"],
-  variable: "--font-body",
-  display: "swap",
-});
-
-const fontDisplay = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  variable: "--font-display",
-  display: "swap",
-});
 
 type Props = {
   children: React.ReactNode;
   params: { locale: Locale };
 };
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  return publicPageMetadata({
-    locale: params.locale,
-    path: "",
-    title: `${COMPANY_NAME} | Agro import and export`,
-    description:
-      "Qum Industries is an India-based B2B import-export company for agro commodities such as bananas, dates and apples. Quotations are private and RFQ-based.",
-  });
-}
-
 export default function LocaleLayout({ children, params }: Props) {
   const t = getTranslations(params.locale);
 
   return (
-    <html lang="en" dir="ltr">
-      <body
-        className={`${fontBody.variable} ${fontDisplay.variable} font-sans antialiased bg-slate-50 text-slate-900`}
-      >
         <AuthProvider>
           <div className="min-h-screen flex flex-col">
             <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/85 backdrop-blur-md shadow-sm">
@@ -129,8 +99,6 @@ export default function LocaleLayout({ children, params }: Props) {
           </footer>
         </div>
       </AuthProvider>
-      </body>
-    </html>
   );
 }
 

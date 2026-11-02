@@ -58,7 +58,7 @@ export default function ContactPage({}: Props) {
     <div className="max-w-4xl mx-auto px-4 py-12">
       <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-soft">
         <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Contact</p>
-        <h1 className="mt-1 text-3xl font-display font-semibold text-slate-900">Contact Us</h1>
+        <h1 className="mt-1 text-3xl font-display font-semibold text-slate-900">Contact Qum Industries</h1>
         <p className="mt-3 text-sm text-slate-600">
           Global buyers can request a quotation by creating an account, or send a first inquiry here.
           We coordinate product availability, Incoterms, and shipment documents from one workspace.

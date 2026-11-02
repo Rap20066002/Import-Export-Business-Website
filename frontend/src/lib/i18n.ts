@@ -35,7 +35,7 @@ const messages: Record<Locale, Messages> = {
       title: "How Our Trade Process Works",
     },
     products: {
-      title: "Core Agro Commodities",
+      title: "Agro commodities for B2B export",
     },
     dashboard: {
       title: "Buyer Dashboard",

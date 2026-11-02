@@ -30,6 +30,15 @@ export function jsonLdString(data: unknown) {
   return JSON.stringify(data).replace(/</g, "\\u003c");
 }
 
+export function clampMetaDescription(text: string, max = 160) {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (normalized.length <= max) return normalized;
+  const cut = normalized.slice(0, max);
+  const space = cut.lastIndexOf(" ");
+  const clipped = (space > 80 ? cut.slice(0, space) : cut).replace(/[,.;:]+$/, "");
+  return `${clipped}…`;
+}
+
 export function publicPageMetadata(options: {
   title: string;
   description: string;
@@ -37,16 +46,19 @@ export function publicPageMetadata(options: {
   locale?: string;
   imagePath?: string | null;
   imageAlt?: string;
+  index?: boolean;
 }) {
   const locale = options.locale || "en";
   const url = pageUrl(locale, options.path);
   const imagePath = options.imagePath || DEFAULT_OG_PATH;
   const image = absoluteUrl(imagePath);
   const imageAlt = options.imageAlt || options.title;
+  const description = clampMetaDescription(options.description);
+  const index = options.index !== false;
 
   return {
     title: { absolute: options.title },
-    description: options.description,
+    description,
     alternates: {
       canonical: url,
       languages: {
@@ -59,19 +71,19 @@ export function publicPageMetadata(options: {
       locale: "en_US",
       siteName: COMPANY_NAME,
       title: options.title,
-      description: options.description,
+      description,
       url,
       images: [{ url: image, alt: imageAlt }],
     },
     twitter: {
       card: "summary_large_image" as const,
       title: options.title,
-      description: options.description,
+      description,
       images: [image],
     },
     robots: {
-      index: true,
-      follow: true,
+      index,
+      follow: index,
     },
   };
 }

@@ -15,6 +15,7 @@ type Product = {
   metaDescription?: string | null;
   packagingOptions?: string | null;
   defaultPackagingKg?: number | null;
+  isActive?: boolean;
   originCountry?: { name?: string | null } | null;
 };
 
@@ -56,9 +57,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     locale: params.locale,
     path: `products/${product.slug}`,
     title,
-    description: productDescription(product).slice(0, 160),
+    description: productDescription(product),
     imagePath: media?.src,
     imageAlt: media?.alt || product.nameEn,
+    index: product.isActive !== false,
   });
 }
 
@@ -101,7 +103,18 @@ export default async function ProductPage({ params }: Props) {
         description: product.descriptionEn || productDescription(product),
         url: pageCanonical,
         brand: { "@type": "Organization", name: COMPANY_NAME },
-        ...(origin ? { countryOfOrigin: origin } : {}),
+        ...(origin
+          ? { countryOfOrigin: { "@type": "Country", name: origin } }
+          : {}),
+        ...(product.packagingOptions
+          ? {
+              additionalProperty: {
+                "@type": "PropertyValue",
+                name: "Standard packing",
+                value: product.packagingOptions,
+              },
+            }
+          : {}),
         ...(media ? { image: absoluteUrl(media.src) } : {}),
       },
     ],

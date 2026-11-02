@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { Locale } from "@/lib/i18n";
 import { getTranslations } from "@/lib/i18n";
-import { publicPageMetadata } from "@/lib/site";
+import { COMPANY_NAME, jsonLdString, pageUrl, publicPageMetadata, siteBaseUrl } from "@/lib/site";
 
 type Props = { params: { locale: Locale } };
 
@@ -18,9 +18,24 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default function AboutPage({ params }: Props) {
   const t = getTranslations(params.locale);
+  const origin = siteBaseUrl();
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "AboutPage",
+    name: t.about.title,
+    url: pageUrl(params.locale, "about"),
+    description:
+      "Qum Industries supports B2B agro import and export with RFQ-based quotations, shipment documentation and logistics coordination across India, Iran, UAE and Iraq.",
+    mainEntity: {
+      "@type": "Organization",
+      "@id": `${origin}/#organization`,
+      name: COMPANY_NAME,
+    },
+  };
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10 text-sm space-y-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">{t.about.title}</h1>
         <p className="mt-2 text-slate-600 max-w-2xl">

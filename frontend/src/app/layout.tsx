@@ -1,6 +1,21 @@
 import type { Metadata } from "next";
+import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 
-import { COMPANY_NAME, DEFAULT_OG_PATH, absoluteUrl, siteBaseUrl } from "@/lib/site";
+import { COMPANY_NAME, DEFAULT_OG_PATH, absoluteUrl, pageUrl, siteBaseUrl } from "@/lib/site";
+
+import "./globals.css";
+
+const fontBody = Inter({
+  subsets: ["latin"],
+  variable: "--font-body",
+  display: "swap",
+});
+
+const fontDisplay = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+});
 
 const defaultTitle = `${COMPANY_NAME} | Agro import and export`;
 const defaultDescription =
@@ -20,7 +35,7 @@ export const metadata: Metadata = {
     siteName: COMPANY_NAME,
     title: defaultTitle,
     description: defaultDescription,
-    url: siteBaseUrl(),
+    url: pageUrl("en"),
     images: [{ url: DEFAULT_OG_PATH, alt: "Agro commodities for export" }],
   },
   twitter: {
@@ -37,8 +52,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" dir="ltr">
+      <body
+        className={`${fontBody.variable} ${fontDisplay.variable} font-sans antialiased bg-slate-50 text-slate-900`}
+      >
+        {children}
+      </body>
     </html>
   );
 }

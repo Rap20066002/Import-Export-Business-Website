@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { Locale } from "@/lib/i18n";
 import { getTranslations } from "@/lib/i18n";
-import { publicPageMetadata } from "@/lib/site";
+import { jsonLdString, pageUrl, publicPageMetadata } from "@/lib/site";
 
 type Props = { params: { locale: Locale } };
 
@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return publicPageMetadata({
     locale: params.locale,
     path: "products",
-    title: "Agro products for export",
+    title: "Agro commodities for B2B export",
     description:
       "Browse Qum Industries agro commodities for B2B import and export, including bananas, dates and apples. Pricing is quoted privately by RFQ.",
     imagePath: "/media/products/dates-01.jpg",
@@ -29,17 +29,41 @@ type Product = {
 
 async function fetchProducts(): Promise<Product[]> {
   const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api";
-  const res = await fetch(`${base}/products`, { cache: "no-store" });
-  if (!res.ok) return [];
-  return (await res.json()) as Product[];
+  try {
+    const res = await fetch(`${base}/products`, { cache: "no-store" });
+    if (!res.ok) return [];
+    const data: unknown = await res.json();
+    return Array.isArray(data) ? (data as Product[]) : [];
+  } catch {
+    return [];
+  }
 }
 
 export default async function ProductsPage({ params }: Props) {
   const t = getTranslations(params.locale);
   const products = await fetchProducts();
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: t.products.title,
+    url: pageUrl(params.locale, "products"),
+    description:
+      "Browse Qum Industries agro commodities for B2B import and export, including bananas, dates and apples. Pricing is quoted privately by RFQ.",
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: products.length,
+      itemListElement: products.map((product, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        name: product.nameEn,
+        url: pageUrl(params.locale, `products/${product.slug}`),
+      })),
+    },
+  };
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10 space-y-6 text-sm">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">{t.products.title}</h1>
         <p className="mt-2 text-slate-600 max-w-2xl">

@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { type Locale, getTranslations } from "@/lib/i18n";
 import { homeHeroCollage, homeShowcaseProducts } from "@/content/home-showcase";
-import { COMPANY_NAME, jsonLdString, publicPageMetadata, siteBaseUrl } from "@/lib/site";
+import { COMPANY_NAME, jsonLdString, pageUrl, publicPageMetadata, siteBaseUrl } from "@/lib/site";
 
 type Props = {
   params: { locale: Locale };
@@ -24,6 +24,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default function HomePage({ params }: Props) {
   const t = getTranslations(params.locale);
   const origin = siteBaseUrl();
+  const home = pageUrl(params.locale);
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -42,7 +43,7 @@ export default function HomePage({ params }: Props) {
         "@type": "WebSite",
         "@id": `${origin}/#website`,
         name: COMPANY_NAME,
-        url: origin,
+        url: home,
         inLanguage: "en",
         publisher: { "@id": `${origin}/#organization` },
       },
