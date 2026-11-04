@@ -10,6 +10,7 @@ import { orderRouter } from "./routes/order";
 import { productRouter } from "./routes/product";
 import { lookupRouter } from "./routes/lookup";
 import { inquiryRouter } from "./routes/inquiry";
+import { reviewRouter } from "./routes/review";
 import { isEmailConfigured } from "./lib/email";
 import { storageMode } from "./lib/s3";
 
@@ -66,6 +67,7 @@ app.use("/api/rfqs", rfqRouter);
 app.use("/api/orders", orderRouter);
 app.use("/api/products", productRouter);
 app.use("/api/inquiries", inquiryRouter);
+app.use("/api/reviews", reviewRouter);
 
 const port = Number(process.env.PORT) || 4000;
 

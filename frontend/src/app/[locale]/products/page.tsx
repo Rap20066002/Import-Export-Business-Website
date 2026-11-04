@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import type { Locale } from "@/lib/i18n";
 import { getTranslations } from "@/lib/i18n";
 import { jsonLdString, pageUrl, publicPageMetadata } from "@/lib/site";
+import { productMedia } from "@/lib/product-media";
 
 type Props = { params: { locale: Locale } };
 
@@ -75,12 +77,26 @@ export default async function ProductsPage({ params }: Props) {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        {products.map((p) => (
+        {products.map((p) => {
+          const media = productMedia(p.slug, p.nameEn);
+          return (
           <Link
             key={p.slug}
             href={`/${params.locale}/products/${p.slug}`}
-            className="rounded-2xl border bg-white px-4 py-3 hover:border-emerald-500/70"
+            className="rounded-2xl border bg-white overflow-hidden hover:border-emerald-500/70"
           >
+            {media ? (
+              <div className="relative aspect-[4/3] bg-slate-100">
+                <Image
+                  src={media.src}
+                  alt={media.alt}
+                  fill
+                  sizes="(max-width: 640px) 100vw, 33vw"
+                  className="object-cover"
+                />
+              </div>
+            ) : null}
+            <div className="px-4 py-3">
             <div className="text-xs uppercase tracking-wide text-emerald-700 mb-1">
               {p.originCountry.name}
             </div>
@@ -89,8 +105,10 @@ export default async function ProductsPage({ params }: Props) {
               <div className="text-[11px] text-slate-500">Packing: {p.packagingOptions}</div>
             ) : null}
             <div className="mt-2 text-[11px] font-medium text-emerald-800">View product</div>
+            </div>
           </Link>
-        ))}
+          );
+        })}
       </div>
       <p className="text-sm text-slate-600">
         <Link className="text-emerald-800 hover:underline" href={`/${params.locale}/contact`}>

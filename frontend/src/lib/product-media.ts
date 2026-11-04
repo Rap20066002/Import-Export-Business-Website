@@ -8,9 +8,37 @@ const BY_SLUG: Record<string, { src: string; alt: string }> = {
     src: "/media/products/apples-01.jpg",
     alt: "Graded apples for import and export",
   },
+  "rabbi-dates": {
+    src: "/media/products/rabbi-dates.jpg",
+    alt: "Rabbi dates for export",
+  },
   "mazafati-kimia-dates": {
-    src: "/media/products/dates-01.jpg",
-    alt: "Mazafati Kimia dates",
+    src: "/media/products/mazafati-kimia-dates.jpg",
+    alt: "Mazafati Kimia dates for export",
+  },
+  "mazafati-loose-dates": {
+    src: "/media/products/mazafati-loose-dates.jpg",
+    alt: "Mazafati loose dates for export",
+  },
+  "mazafati-semi-dry-dates": {
+    src: "/media/products/mazafati-semi-dry-dates.jpg",
+    alt: "Mazafati semi-dry dates for export",
+  },
+  "kaluteh-dates": {
+    src: "/media/products/kaluteh-dates.jpg",
+    alt: "Kaluteh dates for export",
+  },
+  "kabkab-dates": {
+    src: "/media/products/kabkab-dates.jpg",
+    alt: "Kabkab dates for export",
+  },
+  "shahani-dates": {
+    src: "/media/products/shahani-dates.jpg",
+    alt: "Shahani dates for export",
+  },
+  "zahedi-dates": {
+    src: "/media/products/zahedi-dates.jpg",
+    alt: "Zahedi dates for export",
   },
 };
 

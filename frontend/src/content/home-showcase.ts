@@ -26,8 +26,8 @@ export const homeShowcaseProducts: HomeShowcaseItem[] = [
     slug: "mazafati-kimia-dates",
     titleEn: "Mazafati (Kimia)",
     taglineEn: "Iran-origin · cold chain aware · documentation ready",
-    image: "/media/products/dates-01.jpg",
-    imageAltEn: "Premium dates — Mazafati style presentation",
+    image: "/media/products/mazafati-kimia-dates.jpg",
+    imageAltEn: "Mazafati Kimia dates for export",
   },
   {
     slug: "export-apples",

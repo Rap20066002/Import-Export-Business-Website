@@ -19,6 +19,13 @@ type Product = {
   originCountry?: { name?: string | null } | null;
 };
 
+type PublicReview = {
+  id: number;
+  body: string;
+  country?: string | null;
+  rating?: number | null;
+};
+
 async function fetchProduct(slug: string): Promise<Product | null> {
   const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api";
   try {
@@ -29,6 +36,20 @@ async function fetchProduct(slug: string): Promise<Product | null> {
     return (await res.json()) as Product;
   } catch {
     return null;
+  }
+}
+
+async function fetchPublishedReviews(slug: string): Promise<PublicReview[]> {
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api";
+  try {
+    const res = await fetch(`${base}/reviews/public?slug=${encodeURIComponent(slug)}`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return [];
+    const data: unknown = await res.json();
+    return Array.isArray(data) ? (data as PublicReview[]) : [];
+  } catch {
+    return [];
   }
 }
 
@@ -66,6 +87,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProductPage({ params }: Props) {
   const product = await fetchProduct(params.slug);
+  const reviews = product ? await fetchPublishedReviews(params.slug) : [];
 
   if (!product) {
     return (
@@ -189,6 +211,27 @@ export default async function ProductPage({ params }: Props) {
           </Link>
         </div>
       </div>
+
+      {reviews.length > 0 ? (
+        <section className="space-y-3" aria-labelledby="customer-feedback-heading">
+          <h2 id="customer-feedback-heading" className="text-sm font-semibold text-slate-900">
+            Customer feedback
+          </h2>
+          <ul className="space-y-3">
+            {reviews.map((review) => (
+              <li key={review.id} className="rounded-2xl border bg-white px-4 py-3">
+                {typeof review.rating === "number" ? (
+                  <p className="text-xs font-medium text-emerald-800 mb-1">Rating: {review.rating} / 5</p>
+                ) : null}
+                <p className="text-sm text-slate-700 leading-relaxed">{review.body}</p>
+                {review.country ? (
+                  <p className="mt-2 text-[11px] text-slate-500">{review.country}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }
