@@ -6,6 +6,8 @@ import { jsonLdString, pageUrl, publicPageMetadata } from "@/lib/site";
 
 type Props = { params: { locale: Locale } };
 
+export const revalidate = 3600;
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return publicPageMetadata({
     locale: params.locale,
@@ -30,7 +32,7 @@ type Product = {
 async function fetchProducts(): Promise<Product[]> {
   const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api";
   try {
-    const res = await fetch(`${base}/products`, { cache: "no-store" });
+    const res = await fetch(`${base}/products`, { next: { revalidate: 3600 } });
     if (!res.ok) return [];
     const data: unknown = await res.json();
     return Array.isArray(data) ? (data as Product[]) : [];
