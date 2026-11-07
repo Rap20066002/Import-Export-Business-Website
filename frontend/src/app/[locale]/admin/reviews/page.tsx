@@ -17,19 +17,37 @@ type AdminReview = {
   authorName: string | null;
   country: string | null;
   rating: number | null;
+  reviewDate: string | null;
   isPublished: boolean;
   createdAt: string;
   product: { id: number; slug: string; nameEn: string };
 };
 
-const emptyForm = {
-  productId: "",
-  authorName: "",
-  body: "",
-  country: "",
-  rating: "",
-  isPublished: false,
-};
+function localTodayYmd() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function inputDateValue(value?: string | null) {
+  if (!value) return "";
+  const match = value.trim().match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : "";
+}
+
+function emptyForm() {
+  return {
+    productId: "",
+    authorName: "",
+    body: "",
+    country: "",
+    rating: "",
+    reviewDate: localTodayYmd(),
+    isPublished: false,
+  };
+}
 
 export default function AdminReviewsPage({ params }: Props) {
   const { user, token, loading } = useAuth();
@@ -76,7 +94,7 @@ export default function AdminReviewsPage({ params }: Props) {
   }
 
   const resetForm = () => {
-    setForm(emptyForm);
+    setForm(emptyForm());
     setEditingId(null);
   };
 
@@ -86,6 +104,7 @@ export default function AdminReviewsPage({ params }: Props) {
     body: form.body.trim(),
     country: form.country.trim() || null,
     rating: form.rating ? Number(form.rating) : null,
+    reviewDate: form.reviewDate.trim() || null,
     isPublished: form.isPublished,
   });
 
@@ -144,6 +163,7 @@ export default function AdminReviewsPage({ params }: Props) {
       body: review.body,
       country: review.country || "",
       rating: review.rating ? String(review.rating) : "",
+      reviewDate: inputDateValue(review.reviewDate) || inputDateValue(review.createdAt) || localTodayYmd(),
       isPublished: review.isPublished,
     });
   };
@@ -229,6 +249,19 @@ export default function AdminReviewsPage({ params }: Props) {
               <option value="5">5</option>
             </select>
           </label>
+          <label className="text-xs text-slate-600 space-y-1">
+            <span>Review Date</span>
+            <input
+              type="date"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              max={localTodayYmd()}
+              value={form.reviewDate}
+              onChange={(e) => setForm((f) => ({ ...f, reviewDate: e.target.value }))}
+            />
+            <span className="block text-[11px] text-slate-500">
+              Date the customer actually gave this feedback. Not the date it was entered here.
+            </span>
+          </label>
           <label className="flex items-center gap-2 text-xs text-slate-700 pt-6">
             <input
               type="checkbox"
@@ -268,6 +301,7 @@ export default function AdminReviewsPage({ params }: Props) {
               <th className="px-3 py-2 text-left">Feedback</th>
               <th className="px-3 py-2 text-left">Country</th>
               <th className="px-3 py-2 text-left">Rating</th>
+              <th className="px-3 py-2 text-left">Review date</th>
               <th className="px-3 py-2 text-left">Status</th>
               <th className="px-3 py-2 text-left">Actions</th>
             </tr>
@@ -275,7 +309,7 @@ export default function AdminReviewsPage({ params }: Props) {
           <tbody>
             {reviews.length === 0 ? (
               <tr>
-                <td className="px-3 py-4 text-slate-500" colSpan={7}>
+                <td className="px-3 py-4 text-slate-500" colSpan={8}>
                   No reviews yet. Add genuine customer feedback above. Nothing is shown on the public site until
                   you publish it.
                 </td>
@@ -288,6 +322,9 @@ export default function AdminReviewsPage({ params }: Props) {
                   <td className="px-3 py-2 align-top max-w-sm">{review.body}</td>
                   <td className="px-3 py-2 align-top">{review.country || "—"}</td>
                   <td className="px-3 py-2 align-top">{review.rating ?? "—"}</td>
+                  <td className="px-3 py-2 align-top">
+                    {inputDateValue(review.reviewDate) || inputDateValue(review.createdAt) || "—"}
+                  </td>
                   <td className="px-3 py-2 align-top">
                     {review.isPublished ? "Published" : "Unpublished"}
                   </td>

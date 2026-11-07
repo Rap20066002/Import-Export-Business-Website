@@ -25,8 +25,30 @@ type PublicReview = {
   authorName?: string | null;
   country?: string | null;
   rating?: number | null;
+  reviewDate?: string | null;
   createdAt?: string | null;
 };
+
+function calendarDateOnly(value?: string | null) {
+  if (!value || !value.trim()) return null;
+  const match = value.trim().match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : null;
+}
+
+function reviewDisplayDate(review: PublicReview) {
+  return calendarDateOnly(review.reviewDate) || calendarDateOnly(review.createdAt);
+}
+
+function formatVisitorDate(isoDate: string) {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  if (!year || !month || !day) return isoDate;
+  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
 
 const REVIEW_JSON_LD_SLUG = "rabbi-dates";
 const FABRICATED_AUTHOR = /^(verified customer|qum industries customer)$/i;
@@ -129,10 +151,7 @@ export default async function ProductPage({ params }: Props) {
           typeof review.rating === "number" && review.rating >= 1 && review.rating <= 5
             ? review.rating
             : null;
-        const published =
-          typeof review.createdAt === "string" && review.createdAt.trim()
-            ? review.createdAt
-            : null;
+        const published = reviewDisplayDate(review);
         return [
           {
             "@type": "Review" as const,
@@ -281,7 +300,9 @@ export default async function ProductPage({ params }: Props) {
             Customer feedback
           </h2>
           <ul className="space-y-3">
-            {reviews.map((review) => (
+            {reviews.map((review) => {
+              const shownDate = reviewDisplayDate(review);
+              return (
               <li key={review.id} className="rounded-2xl border bg-white px-4 py-3">
                 {review.authorName ? (
                   <p className="text-xs font-semibold text-slate-900 mb-1">{review.authorName}</p>
@@ -290,18 +311,16 @@ export default async function ProductPage({ params }: Props) {
                   <p className="text-xs font-medium text-emerald-800 mb-1">Rating: {review.rating} / 5</p>
                 ) : null}
                 <p className="text-sm text-slate-700 leading-relaxed">{review.body}</p>
-                {review.country || review.createdAt ? (
+                {review.country || shownDate ? (
                   <p className="mt-2 text-[11px] text-slate-500">
-                    {[
-                      review.country,
-                      review.createdAt ? new Date(review.createdAt).toISOString().slice(0, 10) : null,
-                    ]
+                    {[review.country, shownDate ? formatVisitorDate(shownDate) : null]
                       .filter(Boolean)
                       .join(" · ")}
                   </p>
                 ) : null}
               </li>
-            ))}
+              );
+            })}
           </ul>
         </section>
       ) : null}
