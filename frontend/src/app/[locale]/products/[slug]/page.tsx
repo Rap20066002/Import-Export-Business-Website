@@ -22,9 +22,21 @@ type Product = {
 type PublicReview = {
   id: number;
   body: string;
+  authorName?: string | null;
   country?: string | null;
   rating?: number | null;
+  createdAt?: string | null;
 };
+
+const REVIEW_JSON_LD_SLUG = "rabbi-dates";
+const FABRICATED_AUTHOR = /^(verified customer|qum industries customer)$/i;
+
+function eligibleAuthorName(name?: string | null) {
+  const trimmed = typeof name === "string" ? name.trim() : "";
+  if (!trimmed || trimmed.length > 99 || !/[A-Za-z]/.test(trimmed)) return null;
+  if (FABRICATED_AUTHOR.test(trimmed)) return null;
+  return trimmed;
+}
 
 async function fetchProduct(slug: string): Promise<Product | null> {
   const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api";
@@ -108,6 +120,55 @@ export default async function ProductPage({ params }: Props) {
   const media = productMedia(product.slug, product.nameEn);
   const origin = product.originCountry?.name;
   const pageCanonical = pageUrl(params.locale, `products/${product.slug}`);
+  const includeReviewJsonLd = product.slug === REVIEW_JSON_LD_SLUG;
+  const schemaReviews = includeReviewJsonLd
+    ? reviews.flatMap((review) => {
+        const authorName = eligibleAuthorName(review.authorName);
+        if (!authorName) return [];
+        const rating =
+          typeof review.rating === "number" && review.rating >= 1 && review.rating <= 5
+            ? review.rating
+            : null;
+        const published =
+          typeof review.createdAt === "string" && review.createdAt.trim()
+            ? review.createdAt
+            : null;
+        return [
+          {
+            "@type": "Review" as const,
+            author: { "@type": "Person" as const, name: authorName },
+            reviewBody: review.body,
+            ...(published ? { datePublished: published } : {}),
+            ...(rating != null
+              ? {
+                  reviewRating: {
+                    "@type": "Rating" as const,
+                    ratingValue: rating,
+                    bestRating: 5,
+                    worstRating: 1,
+                  },
+                }
+              : {}),
+          },
+        ];
+      })
+    : [];
+  const ratedReviews = schemaReviews.filter((review) => review.reviewRating);
+  const aggregateRating =
+    includeReviewJsonLd && ratedReviews.length > 0
+      ? {
+          "@type": "AggregateRating" as const,
+          ratingValue: Number(
+            (
+              ratedReviews.reduce((sum, review) => sum + Number(review.reviewRating?.ratingValue), 0) /
+              ratedReviews.length
+            ).toFixed(1)
+          ),
+          ratingCount: ratedReviews.length,
+          bestRating: 5,
+          worstRating: 1,
+        }
+      : null;
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -138,6 +199,8 @@ export default async function ProductPage({ params }: Props) {
             }
           : {}),
         ...(media ? { image: absoluteUrl(media.src) } : {}),
+        ...(includeReviewJsonLd && schemaReviews.length > 0 ? { review: schemaReviews } : {}),
+        ...(aggregateRating ? { aggregateRating } : {}),
       },
     ],
   };
@@ -220,12 +283,22 @@ export default async function ProductPage({ params }: Props) {
           <ul className="space-y-3">
             {reviews.map((review) => (
               <li key={review.id} className="rounded-2xl border bg-white px-4 py-3">
+                {review.authorName ? (
+                  <p className="text-xs font-semibold text-slate-900 mb-1">{review.authorName}</p>
+                ) : null}
                 {typeof review.rating === "number" ? (
                   <p className="text-xs font-medium text-emerald-800 mb-1">Rating: {review.rating} / 5</p>
                 ) : null}
                 <p className="text-sm text-slate-700 leading-relaxed">{review.body}</p>
-                {review.country ? (
-                  <p className="mt-2 text-[11px] text-slate-500">{review.country}</p>
+                {review.country || review.createdAt ? (
+                  <p className="mt-2 text-[11px] text-slate-500">
+                    {[
+                      review.country,
+                      review.createdAt ? new Date(review.createdAt).toISOString().slice(0, 10) : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
                 ) : null}
               </li>
             ))}

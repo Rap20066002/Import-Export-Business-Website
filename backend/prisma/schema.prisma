@@ -94,6 +94,7 @@ model ProductReview {
   id          Int      @id @default(autoincrement())
   productId   Int
   body        String
+  authorName  String?
   country     String?
   rating      Int?
   isPublished Boolean  @default(false)

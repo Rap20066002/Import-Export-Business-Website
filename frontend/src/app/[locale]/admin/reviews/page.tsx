@@ -14,6 +14,7 @@ type AdminReview = {
   id: number;
   productId: number;
   body: string;
+  authorName: string | null;
   country: string | null;
   rating: number | null;
   isPublished: boolean;
@@ -23,6 +24,7 @@ type AdminReview = {
 
 const emptyForm = {
   productId: "",
+  authorName: "",
   body: "",
   country: "",
   rating: "",
@@ -80,6 +82,7 @@ export default function AdminReviewsPage({ params }: Props) {
 
   const payload = () => ({
     productId: Number(form.productId),
+    authorName: form.authorName.trim() || null,
     body: form.body.trim(),
     country: form.country.trim() || null,
     rating: form.rating ? Number(form.rating) : null,
@@ -137,6 +140,7 @@ export default function AdminReviewsPage({ params }: Props) {
     setEditingId(review.id);
     setForm({
       productId: String(review.productId),
+      authorName: review.authorName || "",
       body: review.body,
       country: review.country || "",
       rating: review.rating ? String(review.rating) : "",
@@ -150,8 +154,8 @@ export default function AdminReviewsPage({ params }: Props) {
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Manage reviews</h1>
           <p className="text-slate-600">
-            Add genuine customer feedback per product. Leave rating empty unless the customer provided one.
-            Unpublished reviews stay off the public site.
+            Add genuine customer feedback per product. Use the customer or team name they actually gave — do not
+            invent names. Leave rating empty unless they provided one. A name is required for Google Review markup.
           </p>
         </div>
         <Link
@@ -183,6 +187,16 @@ export default function AdminReviewsPage({ params }: Props) {
                 </option>
               ))}
             </select>
+          </label>
+          <label className="text-xs text-slate-600 space-y-1">
+            <span>Customer / author name</span>
+            <input
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              maxLength={99}
+              value={form.authorName}
+              onChange={(e) => setForm((f) => ({ ...f, authorName: e.target.value }))}
+              placeholder="Real person or procurement team name"
+            />
           </label>
           <label className="text-xs text-slate-600 space-y-1">
             <span>Country (optional)</span>
@@ -250,6 +264,7 @@ export default function AdminReviewsPage({ params }: Props) {
           <thead className="bg-slate-50 text-slate-500">
             <tr>
               <th className="px-3 py-2 text-left">Product</th>
+              <th className="px-3 py-2 text-left">Author</th>
               <th className="px-3 py-2 text-left">Feedback</th>
               <th className="px-3 py-2 text-left">Country</th>
               <th className="px-3 py-2 text-left">Rating</th>
@@ -260,7 +275,7 @@ export default function AdminReviewsPage({ params }: Props) {
           <tbody>
             {reviews.length === 0 ? (
               <tr>
-                <td className="px-3 py-4 text-slate-500" colSpan={6}>
+                <td className="px-3 py-4 text-slate-500" colSpan={7}>
                   No reviews yet. Add genuine customer feedback above. Nothing is shown on the public site until
                   you publish it.
                 </td>
@@ -269,6 +284,7 @@ export default function AdminReviewsPage({ params }: Props) {
               reviews.map((review) => (
                 <tr key={review.id} className="border-t">
                   <td className="px-3 py-2 align-top">{review.product.nameEn}</td>
+                  <td className="px-3 py-2 align-top">{review.authorName || "—"}</td>
                   <td className="px-3 py-2 align-top max-w-sm">{review.body}</td>
                   <td className="px-3 py-2 align-top">{review.country || "—"}</td>
                   <td className="px-3 py-2 align-top">{review.rating ?? "—"}</td>

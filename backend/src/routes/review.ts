@@ -21,9 +21,24 @@ const optionalRating = z.preprocess((value) => {
   return Number.isFinite(n) ? n : value;
 }, z.number().int().min(1).max(5).nullable());
 
+const FABRICATED_AUTHOR = /^(verified customer|qum industries customer)$/i;
+
+const optionalAuthorName = z.preprocess((value) => {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+}, z
+  .string()
+  .max(99)
+  .refine((name) => /[A-Za-z]/.test(name), "Author must be a genuine person or team name")
+  .refine((name) => !FABRICATED_AUTHOR.test(name), "Do not use a fabricated author name")
+  .nullable());
+
 const reviewBodySchema = z.object({
   productId: z.coerce.number().int().positive(),
   body: z.string().trim().min(1).max(4000),
+  authorName: optionalAuthorName.optional(),
   country: optionalCountry.optional(),
   rating: optionalRating.optional(),
   isPublished: z.boolean().optional(),
@@ -36,6 +51,7 @@ const publishSchema = z.object({
 function publicReview(review: {
   id: number;
   body: string;
+  authorName: string | null;
   country: string | null;
   rating: number | null;
   createdAt: Date;
@@ -43,6 +59,7 @@ function publicReview(review: {
   return {
     id: review.id,
     body: review.body,
+    authorName: review.authorName,
     country: review.country,
     rating: review.rating,
     createdAt: review.createdAt,
@@ -62,7 +79,7 @@ router.get("/public", async (req, res) => {
   const reviews = await prisma.productReview.findMany({
     where: { productId: product.id, isPublished: true },
     orderBy: { createdAt: "desc" },
-    select: { id: true, body: true, country: true, rating: true, createdAt: true },
+    select: { id: true, body: true, authorName: true, country: true, rating: true, createdAt: true },
   });
   return res.json(reviews.map(publicReview));
 });
@@ -93,6 +110,7 @@ router.post("/", requireAuth([...adminRoles]), async (req, res) => {
     data: {
       productId: parsed.data.productId,
       body: parsed.data.body,
+      authorName: parsed.data.authorName ?? null,
       country: parsed.data.country ?? null,
       rating: parsed.data.rating ?? null,
       isPublished: parsed.data.isPublished ?? false,
@@ -125,6 +143,7 @@ router.put("/:id", requireAuth([...adminRoles]), async (req, res) => {
     data: {
       productId: parsed.data.productId,
       body: parsed.data.body,
+      authorName: parsed.data.authorName ?? null,
       country: parsed.data.country ?? null,
       rating: parsed.data.rating ?? null,
       isPublished: parsed.data.isPublished ?? existing.isPublished,
