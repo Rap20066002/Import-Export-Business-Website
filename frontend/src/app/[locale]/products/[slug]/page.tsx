@@ -50,7 +50,6 @@ function formatVisitorDate(isoDate: string) {
   });
 }
 
-const REVIEW_JSON_LD_SLUG = "rabbi-dates";
 const FABRICATED_AUTHOR = /^(verified customer|qum industries customer)$/i;
 
 function eligibleAuthorName(name?: string | null) {
@@ -142,39 +141,36 @@ export default async function ProductPage({ params }: Props) {
   const media = productMedia(product.slug, product.nameEn);
   const origin = product.originCountry?.name;
   const pageCanonical = pageUrl(params.locale, `products/${product.slug}`);
-  const includeReviewJsonLd = product.slug === REVIEW_JSON_LD_SLUG;
-  const schemaReviews = includeReviewJsonLd
-    ? reviews.flatMap((review) => {
-        const authorName = eligibleAuthorName(review.authorName);
-        if (!authorName) return [];
-        const rating =
-          typeof review.rating === "number" && review.rating >= 1 && review.rating <= 5
-            ? review.rating
-            : null;
-        const published = reviewDisplayDate(review);
-        return [
-          {
-            "@type": "Review" as const,
-            author: { "@type": "Person" as const, name: authorName },
-            reviewBody: review.body,
-            ...(published ? { datePublished: published } : {}),
-            ...(rating != null
-              ? {
-                  reviewRating: {
-                    "@type": "Rating" as const,
-                    ratingValue: rating,
-                    bestRating: 5,
-                    worstRating: 1,
-                  },
-                }
-              : {}),
-          },
-        ];
-      })
-    : [];
+  const schemaReviews = reviews.flatMap((review) => {
+    const authorName = eligibleAuthorName(review.authorName);
+    if (!authorName) return [];
+    const rating =
+      typeof review.rating === "number" && review.rating >= 1 && review.rating <= 5
+        ? review.rating
+        : null;
+    const published = reviewDisplayDate(review);
+    return [
+      {
+        "@type": "Review" as const,
+        author: { "@type": "Person" as const, name: authorName },
+        reviewBody: review.body,
+        ...(published ? { datePublished: published } : {}),
+        ...(rating != null
+          ? {
+              reviewRating: {
+                "@type": "Rating" as const,
+                ratingValue: rating,
+                bestRating: 5,
+                worstRating: 1,
+              },
+            }
+          : {}),
+      },
+    ];
+  });
   const ratedReviews = schemaReviews.filter((review) => review.reviewRating);
   const aggregateRating =
-    includeReviewJsonLd && ratedReviews.length > 0
+    ratedReviews.length > 0
       ? {
           "@type": "AggregateRating" as const,
           ratingValue: Number(
@@ -218,7 +214,7 @@ export default async function ProductPage({ params }: Props) {
             }
           : {}),
         ...(media ? { image: absoluteUrl(media.src) } : {}),
-        ...(includeReviewJsonLd && schemaReviews.length > 0 ? { review: schemaReviews } : {}),
+        ...(schemaReviews.length > 0 ? { review: schemaReviews } : {}),
         ...(aggregateRating ? { aggregateRating } : {}),
       },
     ],
